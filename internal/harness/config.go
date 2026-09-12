@@ -25,6 +25,21 @@ type Config struct {
 	DryRun         bool
 }
 
+// String implements fmt.Stringer with ReaperPassword redacted, so that
+// formatting a Config with %v/%+v — in a log line, an error, a test failure
+// message, anywhere — can never leak the credential. Go's fmt package uses
+// this instead of reflecting the struct's fields for both Config and *Config.
+func (c Config) String() string {
+	passwordState := "<empty>"
+	if c.ReaperPassword != "" {
+		passwordState = "<redacted>"
+	}
+	return fmt.Sprintf(
+		"Config{ReaperURL:%q ReaperUsername:%q ReaperPassword:%s Client:%q Engagement:%q SessionsDir:%q Objectives:%v DryRun:%v}",
+		c.ReaperURL, c.ReaperUsername, passwordState, c.Client, c.Engagement, c.SessionsDir, c.Objectives, c.DryRun,
+	)
+}
+
 // stringSlice implements flag.Value to support a repeatable --objective flag.
 type stringSlice []string
 

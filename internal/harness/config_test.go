@@ -2,6 +2,7 @@ package harness
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,7 +118,8 @@ func TestParseArgsEnvFallback(t *testing.T) {
 		t.Fatalf("ParseArgs() error: %v", err)
 	}
 	if cfg.ReaperURL != "https://from-env:8443" || cfg.ReaperUsername != "env-user" || cfg.ReaperPassword != "env-pass" {
-		t.Fatalf("env fallback not applied: %+v", cfg)
+		t.Fatalf("env fallback not applied: url=%q username=%q passwordSet=%v",
+			cfg.ReaperURL, cfg.ReaperUsername, cfg.ReaperPassword != "")
 	}
 
 	// An explicit flag still wins over the environment.
@@ -146,6 +148,27 @@ func TestFinalizeDefaults(t *testing.T) {
 	cfg2 := &Config{Engagement: "acme", Client: "Acme", SessionsDir: "custom"}
 	cfg2.Finalize("ignored")
 	if cfg2.Engagement != "acme" || cfg2.Client != "Acme" || cfg2.SessionsDir != "custom" {
-		t.Errorf("Finalize overwrote explicit values: %+v", cfg2)
+		t.Errorf("Finalize overwrote explicit values: engagement=%q client=%q sessionsDir=%q",
+			cfg2.Engagement, cfg2.Client, cfg2.SessionsDir)
+	}
+}
+
+func TestConfigStringRedactsPassword(t *testing.T) {
+	cfg := Config{ReaperUsername: "op1", ReaperPassword: "super-secret-value"}
+
+	// Covers both the value and pointer forms, since fmt dispatches to
+	// Stringer differently depending on which is passed to %v/%+v.
+	for _, formatted := range []string{
+		fmt.Sprintf("%v", cfg),
+		fmt.Sprintf("%+v", cfg),
+		fmt.Sprintf("%v", &cfg),
+		fmt.Sprintf("%+v", &cfg),
+	} {
+		if strings.Contains(formatted, cfg.ReaperPassword) {
+			t.Fatalf("Config formatting leaked the password: %s", formatted)
+		}
+		if !strings.Contains(formatted, "<redacted>") {
+			t.Fatalf("Config formatting should note the password is redacted: %s", formatted)
+		}
 	}
 }
