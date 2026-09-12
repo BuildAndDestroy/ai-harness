@@ -9,8 +9,10 @@ services:
         required: false
     environment:
       REAPER_URL: ${REAPER_URL:-}
+      REAPER_C2_URL: ${REAPER_C2_URL:-}
       REAPER_USERNAME: ${REAPER_USERNAME:-}
       REAPER_PASSWORD: ${REAPER_PASSWORD:-}
+      REAPER_ENGAGEMENT: ${REAPER_ENGAGEMENT:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - ./sessions:/workspace/sessions

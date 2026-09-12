@@ -62,7 +62,8 @@ RUN mkdir -p /workspace/sessions && chown -R harness:harness /workspace
 USER harness
 
 # ANTHROPIC_API_KEY must be provided at runtime for claude to authenticate
-# non-interactively; REAPER_URL / REAPER_USERNAME / REAPER_PASSWORD (or the
-# matching --reaper-* flags) are required by the harness binary itself.
+# non-interactively; REAPER_URL / REAPER_C2_URL / REAPER_USERNAME /
+# REAPER_PASSWORD / REAPER_ENGAGEMENT (or the matching --reaper-* /
+# --engagement flags) are required by the harness binary itself.
 ENTRYPOINT ["/usr/local/bin/harness"]
 CMD ["--help"]

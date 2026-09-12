@@ -20,9 +20,10 @@ fmt-check:
 docker-build:
 	docker build -t $(IMAGE):local .
 
-# Multi-arch image (linux/amd64 + linux/arm64). Requires a buildx builder that
-# supports multiple platforms and, to actually push the manifest list, --push
-# (buildx can't `--load` a multi-platform result into the local daemon).
+# Multi-arch image (linux/amd64 + linux/arm64). Build only — does not push.
+# Requires a buildx builder that supports multiple platforms. buildx can't
+# `--load` a multi-platform result into the local daemon; the build still
+# verifies both the Go binary and the image for each platform.
 docker-buildx:
 	docker buildx build --platform $(PLATFORMS) -t $(IMAGE):latest .
 

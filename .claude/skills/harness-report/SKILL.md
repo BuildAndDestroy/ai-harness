@@ -23,7 +23,7 @@ taxonomy).
 | Goals & Objectives, Scope, Whitecards | Engagement planning / ROE — ask if missing, don't invent scope |
 | Executive Summary, Methodology, Scenario | Summarized from everything below once it exists — write this section last even though it appears early |
 | Attack Narrative (Critical Steps) | `red-team-operator`'s critical-step log for this engagement |
-| Observations / Recommendations / Validation | `purple-team-atomic-tests` output per positive finding — Validation text should point at the actual atomic test |
+| Observations / Recommendations / Validation | `purple-team-atomic-tests` output per positive finding — Validation text should point at the actual atomic test and the engagement command output it cites |
 | Detailed Findings (severity, CVSS, affected hosts, description, impact, replication, host detection, solution) | Vulnerabilities found incidentally during the engagement, per `red-team-operator`/`reaperc2-operator` — Red Team engagements are not primarily vuln-hunting, so this section may legitimately be short or empty |
 | Mitre ATT&CK Killchain table + Navigator layer link | `reaperc2-operator`'s Notes & ATT&CK technique tags / Navigator layer export (STIX v19) |
 | Timeline (C2 logs, C2 sessions, attack simulation) | `reaperc2-operator`'s Ghostwriter CSV / logs export |

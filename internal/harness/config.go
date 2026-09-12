@@ -16,6 +16,7 @@ import (
 // Config holds the inputs for one harness run.
 type Config struct {
 	ReaperURL      string
+	ReaperC2URL    string
 	ReaperUsername string
 	ReaperPassword string
 	Client         string
@@ -35,8 +36,8 @@ func (c Config) String() string {
 		passwordState = "<redacted>"
 	}
 	return fmt.Sprintf(
-		"Config{ReaperURL:%q ReaperUsername:%q ReaperPassword:%s Client:%q Engagement:%q SessionsDir:%q Objectives:%v DryRun:%v}",
-		c.ReaperURL, c.ReaperUsername, passwordState, c.Client, c.Engagement, c.SessionsDir, c.Objectives, c.DryRun,
+		"Config{ReaperURL:%q ReaperC2URL:%q ReaperUsername:%q ReaperPassword:%s Client:%q Engagement:%q SessionsDir:%q Objectives:%v DryRun:%v}",
+		c.ReaperURL, c.ReaperC2URL, c.ReaperUsername, passwordState, c.Client, c.Engagement, c.SessionsDir, c.Objectives, c.DryRun,
 	)
 }
 
@@ -51,12 +52,17 @@ func (s *stringSlice) Set(v string) error {
 }
 
 // UsageText is the full CLI help text, shared by -h/--help and validation errors.
-const UsageText = `Usage: harness --reaper-url URL --reaper-username USER \
-         --objective "text" [--objective "text" ...] [options]
+const UsageText = `Usage: harness --reaper-url URL --reaper-c2-url URL --reaper-username USER \
+         --engagement NAME --objective "text" [--objective "text" ...] [options]
 
 Required:
-  --reaper-url URL          ReaperC2 admin panel base URL (e.g. https://c2.example.com:8443)
+  --reaper-url URL          ReaperC2 admin panel / operator dashboard base URL
+                            (e.g. https://c2.example.com:8443)
+  --reaper-c2-url URL       Beacon listener / implant C2 base URL
+                            (e.g. https://c2.example.com:8080). Must differ from
+                            --reaper-url; beacons phone home here, not the dashboard.
   --reaper-username USER    ReaperC2 operator username
+  --engagement NAME         Engagement / workspace name this run is scoped to
   --objective TEXT          One engagement objective. Repeat for multiple. At least one required.
 
 One of these is required for the password (never pass it as a bare CLI arg in shared shells):
@@ -66,22 +72,22 @@ One of these is required for the password (never pass it as a bare CLI arg in sh
 
 Optional:
   --client NAME             Client / customer name for the report
-  --engagement NAME         Engagement name (default: eng-<timestamp>)
   --objectives-file PATH    Read additional objectives, one per line
   --sessions-dir PATH       Where to write the session prompt file (default: sessions)
   --dry-run                 Build and print the prompt, don't launch claude
   -h, --help                Show this help
 
 Examples:
-  harness --reaper-url https://c2.internal:8443 --reaper-username op1 \
-    --client "Acme Corp" --engagement "acme-2026-q3" \
+  harness --reaper-url https://c2.internal:8443 --reaper-c2-url https://c2.internal:8080 \
+    --reaper-username op1 --client "Acme Corp" --engagement "acme-2026-q3" \
     --objective "Obtain domain admin from an external foothold" \
     --objective "Demonstrate access to the finance file share"
 `
 
-// ParseArgs parses CLI flags, falling back to REAPER_URL / REAPER_USERNAME /
-// REAPER_PASSWORD environment variables for the connection fields. It does not
-// validate or prompt for a password — see Validate and ResolvePassword.
+// ParseArgs parses CLI flags, falling back to REAPER_URL / REAPER_C2_URL /
+// REAPER_USERNAME / REAPER_PASSWORD / REAPER_ENGAGEMENT environment variables
+// for the connection and scope fields. It does not validate or prompt for a
+// password — see Validate and ResolvePassword.
 func ParseArgs(args []string, stderr io.Writer) (*Config, error) {
 	fs := flag.NewFlagSet("harness", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -89,18 +95,21 @@ func ParseArgs(args []string, stderr io.Writer) (*Config, error) {
 
 	cfg := &Config{
 		ReaperURL:      os.Getenv("REAPER_URL"),
+		ReaperC2URL:    os.Getenv("REAPER_C2_URL"),
 		ReaperUsername: os.Getenv("REAPER_USERNAME"),
 		ReaperPassword: os.Getenv("REAPER_PASSWORD"),
+		Engagement:     os.Getenv("REAPER_ENGAGEMENT"),
 	}
 
 	var objectives stringSlice
 	var objectivesFile string
 
 	fs.StringVar(&cfg.ReaperURL, "reaper-url", cfg.ReaperURL, "ReaperC2 admin panel base URL")
+	fs.StringVar(&cfg.ReaperC2URL, "reaper-c2-url", cfg.ReaperC2URL, "ReaperC2 beacon listener / implant C2 base URL")
 	fs.StringVar(&cfg.ReaperUsername, "reaper-username", cfg.ReaperUsername, "ReaperC2 operator username")
 	fs.StringVar(&cfg.ReaperPassword, "reaper-password", cfg.ReaperPassword, "ReaperC2 operator password")
 	fs.StringVar(&cfg.Client, "client", "", "Client / customer name")
-	fs.StringVar(&cfg.Engagement, "engagement", "", "Engagement name")
+	fs.StringVar(&cfg.Engagement, "engagement", cfg.Engagement, "Engagement name this run is scoped to")
 	fs.StringVar(&cfg.SessionsDir, "sessions-dir", "sessions", "Where to write the session prompt file")
 	fs.Var(&objectives, "objective", "Engagement objective (repeatable)")
 	fs.StringVar(&objectivesFile, "objectives-file", "", "Path to a file of objectives, one per line")
@@ -147,8 +156,14 @@ func (c *Config) Validate() error {
 	if c.ReaperURL == "" {
 		missing = append(missing, "--reaper-url")
 	}
+	if c.ReaperC2URL == "" {
+		missing = append(missing, "--reaper-c2-url")
+	}
 	if c.ReaperUsername == "" {
 		missing = append(missing, "--reaper-username")
+	}
+	if c.Engagement == "" {
+		missing = append(missing, "--engagement")
 	}
 	if len(c.Objectives) == 0 {
 		missing = append(missing, "--objective (at least one)")
@@ -157,20 +172,35 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("missing required input(s): %s", strings.Join(missing, " "))
 	}
 
-	u, err := url.Parse(c.ReaperURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return fmt.Errorf("--reaper-url must start with http:// or https:// (got: %s)", c.ReaperURL)
+	if err := validateHTTPURL("--reaper-url", c.ReaperURL); err != nil {
+		return err
+	}
+	if err := validateHTTPURL("--reaper-c2-url", c.ReaperC2URL); err != nil {
+		return err
+	}
+	if normalizeURL(c.ReaperURL) == normalizeURL(c.ReaperC2URL) {
+		return fmt.Errorf("--reaper-c2-url is the beacon listener and must differ from the admin panel --reaper-url")
 	}
 
 	return nil
 }
 
-// Finalize fills in defaults that depend on runtime state (a generated
-// engagement name, a placeholder client name). Call after Validate succeeds.
-func (c *Config) Finalize(timestamp string) {
-	if c.Engagement == "" {
-		c.Engagement = "eng-" + timestamp
+func validateHTTPURL(flagName, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return fmt.Errorf("%s must start with http:// or https:// (got: %s)", flagName, raw)
 	}
+	return nil
+}
+
+func normalizeURL(raw string) string {
+	return strings.TrimRight(strings.TrimSpace(raw), "/")
+}
+
+// Finalize fills in defaults that depend on runtime state (a placeholder
+// client name). Call after Validate succeeds. Engagement is required and is
+// never generated here — the run stays scoped to the name the operator gave.
+func (c *Config) Finalize() {
 	if c.Client == "" {
 		c.Client = "<UPDATE ME>"
 	}

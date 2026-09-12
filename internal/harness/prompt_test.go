@@ -8,6 +8,7 @@ import (
 func TestBuildPromptOmitsPasswordAndListsSkills(t *testing.T) {
 	cfg := Config{
 		ReaperURL:      "https://c2.example.com:8443",
+		ReaperC2URL:    "https://c2.example.com:8080",
 		ReaperUsername: "op1",
 		ReaperPassword: "super-secret-value",
 		Client:         "Acme Corp",
@@ -40,8 +41,9 @@ func TestBuildPromptOmitsPasswordAndListsSkills(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		cfg.Client, cfg.Engagement, cfg.ReaperURL, cfg.ReaperUsername,
+		cfg.Client, cfg.Engagement, cfg.ReaperURL, cfg.ReaperC2URL, cfg.ReaperUsername,
 		"Get domain admin", "Reach the finance share",
+		"$REAPER_C2_URL", "Notes & ATT&CK", "command output",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt missing expected content %q", want)

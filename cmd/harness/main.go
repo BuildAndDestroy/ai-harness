@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"time"
 
 	"github.com/BuildAndDestroy/ai-harness/internal/harness"
 )
@@ -35,7 +34,7 @@ func run() int {
 		return 1
 	}
 
-	cfg.Finalize(time.Now().Format("20060102-150405"))
+	cfg.Finalize()
 
 	if err := harness.ResolvePassword(cfg, os.Stdin, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
@@ -66,7 +65,7 @@ func run() int {
 		if errors.Is(err, harness.ErrClaudeNotFound) {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, "claude CLI not found on PATH. Prompt is ready at:", sessionPath)
-			fmt.Fprintln(os.Stderr, "Export REAPER_URL, REAPER_USERNAME, REAPER_PASSWORD yourself, then run:")
+			fmt.Fprintln(os.Stderr, "Export REAPER_URL, REAPER_C2_URL, REAPER_USERNAME, REAPER_PASSWORD, REAPER_ENGAGEMENT yourself, then run:")
 			fmt.Fprintf(os.Stderr, "  claude \"$(cat %s)\"\n", sessionPath)
 			return 0
 		}

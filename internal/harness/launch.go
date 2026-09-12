@@ -25,8 +25,10 @@ func Launch(cfg Config, prompt string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(),
 		"REAPER_URL="+cfg.ReaperURL,
+		"REAPER_C2_URL="+cfg.ReaperC2URL,
 		"REAPER_USERNAME="+cfg.ReaperUsername,
 		"REAPER_PASSWORD="+cfg.ReaperPassword,
+		"REAPER_ENGAGEMENT="+cfg.Engagement,
 	)
 	return cmd.Run()
 }

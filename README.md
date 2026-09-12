@@ -26,6 +26,7 @@ go build -o bin/harness ./cmd/harness
 
 ./bin/harness \
   --reaper-url https://c2.example.com:8443 \
+  --reaper-c2-url https://c2.example.com:8080 \
   --reaper-username op1 \
   --client "Acme Corp" \
   --engagement "acme-2026-q3" \
@@ -33,12 +34,16 @@ go build -o bin/harness ./cmd/harness
   --objective "Demonstrate access to the finance file share"
 ```
 
+`--reaper-url` is the operator dashboard; `--reaper-c2-url` is the beacon
+listener implants phone home to — they must differ. `--engagement` scopes the
+run to that ReaperC2 workspace and is required.
+
 You'll be prompted for the ReaperC2 password (hidden input) unless you pass
 `--reaper-password` or set `REAPER_PASSWORD`. The password is never written to
 disk — it lives only in the launcher's process environment and is exported into
 `claude`'s environment as `$REAPER_PASSWORD`. The rendered session prompt (client,
-engagement, objectives, ReaperC2 URL/username — no secret) is saved to
-`sessions/<engagement>.md` for reference.
+engagement, objectives, ReaperC2 admin/C2 URLs and username — no secret) is saved
+to `sessions/<engagement>.md` for reference.
 
 Use `--dry-run` to see the prompt without launching `claude`, and
 `harness --help` for the full flag list (including `--objectives-file` for a
@@ -47,7 +52,7 @@ longer objectives list and `--sessions-dir` to change where prompts are saved).
 ## Running with Docker
 
 ```
-cp .env.example .env   # fill in REAPER_URL / REAPER_USERNAME / REAPER_PASSWORD / ANTHROPIC_API_KEY
+cp .env.example .env   # fill in REAPER_URL / REAPER_C2_URL / REAPER_USERNAME / REAPER_PASSWORD / REAPER_ENGAGEMENT / ANTHROPIC_API_KEY
 docker compose run --rm harness \
   --client "Acme Corp" --engagement "acme-2026-q3" \
   --objective "Obtain domain admin from an external foothold"
@@ -73,13 +78,13 @@ Node.js base image per target platform, so a single `buildx` invocation produces
 both architectures without emulating the Go compiler under QEMU:
 
 ```
-docker buildx build --platform linux/amd64,linux/arm64 -t ai-harness:latest --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t ai-harness:latest .
 ```
 
-(`--push` is required for a genuinely multi-platform result — `docker buildx`
-can't `--load` more than one platform into the local daemon at once. Drop
-`--platform` to build a single-arch image for your local host with
-`make docker-build`.)
+This verifies the Go binary and image build for both platforms. Nothing is
+pushed — CI does the same (`push: false`). `docker buildx` can't `--load` more
+than one platform into the local daemon at once; drop `--platform` to build a
+single-arch image for your local host with `make docker-build`.
 
 ## Development
 
