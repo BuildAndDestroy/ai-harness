@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 ## ---- runtime stage ------------------------------------------------------------
 # Node base so the Claude Code CLI (an npm package) can live alongside the
 # compiled harness binary — harness execs `claude` to actually run the session.
-FROM node:22-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 
 ARG CLAUDE_CODE_VERSION=latest
 
