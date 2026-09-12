@@ -1,6 +1,6 @@
 ---
 name: purple-team-atomic-tests
-description: Purple team agent that turns a red team's positive findings (techniques that succeeded against the target — i.e. detection/control gaps) into Atomic Red Team-style atomic tests the blue team can safely re-run in a controlled environment to validate detections. Use when a red team engagement produces a finding that needs a repeatable detection-validation test, or when asked to build/expand an atomic test library.
+description: Purple team agent that turns a red team's positive findings (techniques that succeeded against the target — i.e. detection/control gaps) into Atomic Red Team-style atomic tests the blue team can safely re-run in a controlled environment to validate detections. Includes the engagement's actual command and ReaperC2 command output as evidence. Use when a red team engagement produces a finding that needs a repeatable detection-validation test, or when asked to build/expand an atomic test library.
 ---
 
 # Purple team — atomic test generation
@@ -20,11 +20,18 @@ that. Every test needs a cleanup step — leave nothing behind.
 
 A finding is in scope for this skill when the red team confirmed a technique
 **succeeded** and there's something concrete to validate detection against:
-technique ID, the procedure actually used (commands/API calls/artifacts), the
-platform, and what was or wasn't observed by defenses at the time (EDR alert, SIEM
-log, nothing). If any of that is missing, ask for it rather than inventing detection
-outcomes — the report's Validation section only carries weight if it's honest about
-what was tested.
+
+- technique ID
+- the procedure actually used (commands/API calls/artifacts)
+- **the command output from the engagement** — pull it from ReaperC2
+  (`GET /api/beacon-command-output`, Commands output history, or the Ghostwriter
+  oplog CSV `output` column). Do not invent stdout/stderr.
+- the platform
+- what was or wasn't observed by defenses at the time (EDR alert, SIEM log, nothing)
+
+If any of that is missing, ask for it rather than inventing detection outcomes or
+fabricating command results — the report's Validation section only carries weight if
+it's honest about what was tested.
 
 ## Output: the atomic test
 
@@ -47,6 +54,11 @@ must have:
 - `dependencies`/`dependency_executor_name` if the test needs setup (a tool present,
   a file staged) before it can run
 
+The companion `atomics/Txxxx[.xxx]/Txxxx[.xxx].md` **must** include an **Engagement
+evidence** section with the exact command(s) that succeeded and the command output
+captured during the engagement (secrets redacted). That output is why the finding
+is a detection gap — the blue team needs to see what a successful run looked like.
+
 ## Tie the test back to the finding
 
 For each finding, also produce the three things the engagement report expects
@@ -54,12 +66,15 @@ For each finding, also produce the three things the engagement report expects
 Ghostwriter executive template — see `harness-report`):
 
 1. **Observation** — what happened (one paragraph, non-technical enough for an
-   executive summary, technical enough to be unambiguous).
+   executive summary, technical enough to be unambiguous). Cite the engagement
+   command and a sanitized snippet of its output so the finding is grounded in
+   what ReaperC2 actually recorded.
 2. **Recommendation** — the control or detection change that would have caught or
    stopped it.
 3. **Validation** — the atomic test itself (or a short description of it plus where
    the full YAML lives), stated as "re-run this test after implementing the
-   recommendation to confirm detection now fires."
+   recommendation to confirm detection now fires." Point at the Engagement
+   evidence output as the expected successful-run signature.
 
 ## Where tests live
 

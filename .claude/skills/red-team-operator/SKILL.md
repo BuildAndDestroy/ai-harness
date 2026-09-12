@@ -47,17 +47,20 @@ engagement's Notes & ATT&CK page (its matrix version selector should be set to v
 - **Positive finding** — a technique that *succeeded* against the target, meaning it
   represents a detection or control gap the blue team should be able to catch next
   time. Hand each one to the `purple-team-atomic-tests` skill (technique ID +
-  procedure + what was/wasn't detected) so it can produce a validation test. Don't
-  invent detection outcomes — only report what was actually observed (logs, EDR
-  alerts, absence of either).
+  procedure + **the ReaperC2 command output from the successful run** + what
+  was/wasn't detected) so it can produce a validation test. Don't invent detection
+  outcomes or stdout — only report what was actually observed (command output,
+  logs, EDR alerts, absence of either).
 
 ## Response format
 
 1. **Situation** — what you know from engagement context (scope, prior steps, current
    access).
 2. **Plan** — numbered next actions, each tagged with its ATT&CK Tactic + Technique ID.
-3. **ATT&CK summary** — the IDs used, ready to paste into ReaperC2's Notes & ATT&CK
-   technique tags (matrix version v19).
+3. **ATT&CK summary** — the IDs used. Hand them to `reaperc2-operator` to write
+   as Notes & ATT&CK technique tags (matrix version v19) — the AI operator must
+   take those notes in ReaperC2; they are what the Navigator layer export is
+   built from.
 4. **OPSEC / caveats** — detection risk, missing data, anything needing operator
    confirmation before it's queued.
 

@@ -73,12 +73,37 @@ atomic_tests:
         rm -f /tmp/atomic-T1053.003.log
 ```
 
+## Engagement evidence (required in the `.md` companion)
+
+The YAML stays a portable lab test (parameterized, no client secrets). The
+`.md` file next to it must record what actually happened on the engagement so
+the blue team and `harness-report` Validation section can see a real successful
+run. Pull command + output from ReaperC2 — do not invent either.
+
+```markdown
+## Engagement evidence
+
+Source: ReaperC2 command output (beacon `<label>`, ClientId `<uuid>`).
+
+**Command:**
+
+    crontab -l
+
+**Output:**
+
+    * * * * * /bin/echo atomic-T1053.003-marker >> /tmp/atomic-T1053.003.log
+```
+
+Redact credentials, beacon secrets, and client-identifying hostnames from the
+pasted output. If output was never retrieved, say so and stop — don't fabricate
+it to fill the section.
+
 ## Naming/location convention
 
 ```
 atomics/
   T1053.003/
-    T1053.003.md     # human-readable: same content, prose form, for the report appendix
+    T1053.003.md     # human-readable: procedure + Engagement evidence (command + output)
     T1053.003.yaml    # machine-readable, loadable by Invoke-AtomicRedTeam-style runners
 ```
 

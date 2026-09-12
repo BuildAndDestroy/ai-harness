@@ -33,14 +33,14 @@ sessions.
 |---|---|---|
 | GET/POST | `/api/engagements` | List / create engagements |
 | GET | `/api/engagements/active` | Currently active workspace for this session |
-| GET/PATCH | `/api/engagements/{id}` | Read / update one engagement (notes, status, haul, room, dates+name+operators if admin) |
+| GET/PATCH | `/api/engagements/{id}` | Read / update one engagement (engagement notes, tactic notes, technique tags, status, haul, room, dates+name+operators if admin). GET first, then PATCH the same keys — this is how the AI operator records Notes & ATT&CK as work happens. |
 | GET | `/api/engagements/{id}/attack-navigator-layer` | Navigator layer JSON scoped to this engagement |
 
 ## Beacons & profiles
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/beacons` | Generate a beacon (`connection_type: HTTP` + form fields) → creates `clients` row + `beacon_profiles` record |
+| POST | `/api/beacons` | Generate a beacon (`connection_type: HTTP` + form fields). **`beacon_base_url` is mandatory** and must be the beacon listener (`$REAPER_C2_URL`), never the admin panel URL. Creates `clients` row + `beacon_profiles` record |
 | POST | `/api/beacons/scythe-embedded` | Build & download a Scythe.embedded binary from a profile's saved Http options |
 | GET | `/api/beacon-profiles` | List saved profiles |
 | DELETE | `/api/beacon-profiles/{id}` | Delete a profile record (does **not** remove the live client) |
@@ -54,7 +54,7 @@ sessions.
 | Method | Path | Purpose |
 |---|---|---|
 | GET/POST | `/api/beacon-commands` | List pending queue / queue a new command (string or `command_obj` JSON) |
-| GET | `/api/beacon-command-output` | Stored output history for a beacon |
+| GET | `/api/beacon-command-output` | Stored output history for a beacon — this is the engagement command output `purple-team-atomic-tests` must cite |
 | POST | `/api/beacon-staging` | Stage a local file for upload → returns `staging_id` |
 | GET | `/api/beacon-artifacts` | List file artifacts (staged uploads + beacon downloads) |
 | GET | `/api/beacon-artifacts/{id}` | Metadata for one artifact |

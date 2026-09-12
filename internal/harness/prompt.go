@@ -18,6 +18,7 @@ var promptTemplate = template.Must(template.New("prompt").Parse(promptTemplateTe
 // rather than relying on the template text alone never referencing it.
 type promptData struct {
 	ReaperURL      string
+	ReaperC2URL    string
 	ReaperUsername string
 	Client         string
 	Engagement     string
@@ -30,6 +31,7 @@ type promptData struct {
 func BuildPrompt(cfg Config) (string, error) {
 	data := promptData{
 		ReaperURL:      cfg.ReaperURL,
+		ReaperC2URL:    cfg.ReaperC2URL,
 		ReaperUsername: cfg.ReaperUsername,
 		Client:         cfg.Client,
 		Engagement:     cfg.Engagement,

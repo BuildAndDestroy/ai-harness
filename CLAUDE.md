@@ -8,15 +8,17 @@ engagement ("harness run"), launched via the `harness` Go binary (`cmd/harness`)
    phase to MITRE ATT&CK v19 Enterprise tactics/techniques. Produces the technique
    log (critical steps, TTPs used) that later stages consume.
 2. **`reaperc2-operator`** — drives [ReaperC2](https://github.com/BuildAndDestroy/ReaperC2)
-   (beacon generation, command queuing, topology, Notes & ATT&CK tagging, exports)
-   for whatever the red-team-operator skill decides to do.
+   (beacon generation against the beacon C2 URL, command queuing, topology, mandatory
+   Notes & ATT&CK tagging for Navigator export, exports) for whatever the
+   red-team-operator skill decides to do, scoped to the named engagement.
 3. **`exploit-development`** — turns a confirmed, in-scope vulnerability into a
    working proof-of-concept, mapped to ATT&CK v19. Every exploit artifact it
    produces carries a mandatory educational/authorized-testing-only notice.
 4. **`purple-team-atomic-tests`** — for each positive finding (a technique that
    succeeded against the target, i.e. a detection/control gap), generates Atomic Red
-   Team-style validation tests the blue team can re-run in a controlled environment.
-   Its output fills the report's Validation fields.
+   Team-style validation tests the blue team can re-run in a controlled environment,
+   including the engagement's command output. Its output fills the report's
+   Validation fields.
 5. **`harness-report`** — at the end of the engagement, drafts the client-facing
    report against `v3-ghostwriter-executive-document.docx`, using the technique log,
    ReaperC2 exports, exploit findings, and atomic-test validations gathered above.
@@ -24,13 +26,15 @@ engagement ("harness run"), launched via the `harness` Go binary (`cmd/harness`)
 ## Starting an engagement
 
 Run the `harness` binary rather than starting a bare Claude Code session by
-hand — it requires a ReaperC2 URL, username, password, and at least one clear
-objective, and refuses to proceed without them:
+hand — it requires a ReaperC2 admin URL, a separate beacon C2 URL, username,
+password, a named engagement, and at least one clear objective, and refuses to
+proceed without them:
 
 ```
 go build -o bin/harness ./cmd/harness
 
-bin/harness --reaper-url https://c2.example.com:8443 --reaper-username op1 \
+bin/harness --reaper-url https://c2.example.com:8443 \
+  --reaper-c2-url https://c2.example.com:8080 --reaper-username op1 \
   --client "Acme Corp" --engagement "acme-2026-q3" \
   --objective "Obtain domain admin from an external foothold" \
   --objective "Demonstrate access to the finance file share"
@@ -40,7 +44,9 @@ or via Docker (see `README.md` for the full container workflow):
 
 ```
 docker compose run --rm harness --reaper-url https://c2.example.com:8443 \
-  --reaper-username op1 --objective "Obtain domain admin from an external foothold"
+  --reaper-c2-url https://c2.example.com:8080 --reaper-username op1 \
+  --engagement "acme-2026-q3" \
+  --objective "Obtain domain admin from an external foothold"
 ```
 
 It builds the initial prompt referencing all five skills and the objectives, keeps

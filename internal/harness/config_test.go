@@ -11,7 +11,7 @@ import (
 
 func clearReaperEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"REAPER_URL", "REAPER_USERNAME", "REAPER_PASSWORD"} {
+	for _, k := range []string{"REAPER_URL", "REAPER_C2_URL", "REAPER_USERNAME", "REAPER_PASSWORD", "REAPER_ENGAGEMENT"} {
 		t.Setenv(k, "")
 	}
 }
@@ -31,22 +31,55 @@ func TestParseArgsAndValidate(t *testing.T) {
 		},
 		{
 			name:    "missing objective",
-			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-username", "op1"},
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--engagement", "acme"},
 			wantErr: "--objective",
+		},
+		{
+			name:    "missing engagement",
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--objective", "test"},
+			wantErr: "--engagement",
+		},
+		{
+			name:    "missing c2 url",
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-username", "op1", "--engagement", "acme", "--objective", "test"},
+			wantErr: "--reaper-c2-url",
 		},
 		{
 			name: "bad scheme",
 			args: []string{
-				"--reaper-url", "ftp://c2", "--reaper-username", "op1",
+				"--reaper-url", "ftp://c2", "--reaper-c2-url", "https://c2:8080",
+				"--reaper-username", "op1", "--engagement", "acme",
 				"--objective", "test",
 			},
 			wantErr: "http:// or https://",
 		},
 		{
+			name: "bad c2 scheme",
+			args: []string{
+				"--reaper-url", "https://c2:8443", "--reaper-c2-url", "ftp://c2:8080",
+				"--reaper-username", "op1", "--engagement", "acme",
+				"--objective", "test",
+			},
+			wantErr: "--reaper-c2-url must start with http:// or https://",
+		},
+		{
+			name: "c2 url same as admin url",
+			args: []string{
+				"--reaper-url", "https://c2.example.com:8443",
+				"--reaper-c2-url", "https://c2.example.com:8443/",
+				"--reaper-username", "op1",
+				"--engagement", "acme",
+				"--objective", "test",
+			},
+			wantErr: "must differ",
+		},
+		{
 			name: "valid",
 			args: []string{
 				"--reaper-url", "https://c2.example.com:8443",
+				"--reaper-c2-url", "https://c2.example.com:8080",
 				"--reaper-username", "op1",
+				"--engagement", "acme-2026-q3",
 				"--objective", "Get domain admin",
 				"--objective", "Reach the finance share",
 			},
@@ -109,17 +142,20 @@ func TestParseArgsObjectivesFile(t *testing.T) {
 func TestParseArgsEnvFallback(t *testing.T) {
 	clearReaperEnv(t)
 	t.Setenv("REAPER_URL", "https://from-env:8443")
+	t.Setenv("REAPER_C2_URL", "https://from-env:8080")
 	t.Setenv("REAPER_USERNAME", "env-user")
 	t.Setenv("REAPER_PASSWORD", "env-pass")
+	t.Setenv("REAPER_ENGAGEMENT", "env-eng")
 
 	var stderr bytes.Buffer
 	cfg, err := ParseArgs([]string{"--objective", "x"}, &stderr)
 	if err != nil {
 		t.Fatalf("ParseArgs() error: %v", err)
 	}
-	if cfg.ReaperURL != "https://from-env:8443" || cfg.ReaperUsername != "env-user" || cfg.ReaperPassword != "env-pass" {
-		t.Fatalf("env fallback not applied: url=%q username=%q passwordSet=%v",
-			cfg.ReaperURL, cfg.ReaperUsername, cfg.ReaperPassword != "")
+	if cfg.ReaperURL != "https://from-env:8443" || cfg.ReaperC2URL != "https://from-env:8080" ||
+		cfg.ReaperUsername != "env-user" || cfg.ReaperPassword != "env-pass" || cfg.Engagement != "env-eng" {
+		t.Fatalf("env fallback not applied: url=%q c2=%q username=%q engagement=%q passwordSet=%v",
+			cfg.ReaperURL, cfg.ReaperC2URL, cfg.ReaperUsername, cfg.Engagement, cfg.ReaperPassword != "")
 	}
 
 	// An explicit flag still wins over the environment.
@@ -133,10 +169,10 @@ func TestParseArgsEnvFallback(t *testing.T) {
 }
 
 func TestFinalizeDefaults(t *testing.T) {
-	cfg := &Config{}
-	cfg.Finalize("20260101-000000")
-	if cfg.Engagement != "eng-20260101-000000" {
-		t.Errorf("Engagement = %q", cfg.Engagement)
+	cfg := &Config{Engagement: "acme-2026-q3"}
+	cfg.Finalize()
+	if cfg.Engagement != "acme-2026-q3" {
+		t.Errorf("Engagement = %q, Finalize must not invent an engagement name", cfg.Engagement)
 	}
 	if cfg.Client != "<UPDATE ME>" {
 		t.Errorf("Client = %q", cfg.Client)
@@ -146,7 +182,7 @@ func TestFinalizeDefaults(t *testing.T) {
 	}
 
 	cfg2 := &Config{Engagement: "acme", Client: "Acme", SessionsDir: "custom"}
-	cfg2.Finalize("ignored")
+	cfg2.Finalize()
 	if cfg2.Engagement != "acme" || cfg2.Client != "Acme" || cfg2.SessionsDir != "custom" {
 		t.Errorf("Finalize overwrote explicit values: engagement=%q client=%q sessionsDir=%q",
 			cfg2.Engagement, cfg2.Client, cfg2.SessionsDir)
