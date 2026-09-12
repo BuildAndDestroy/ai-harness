@@ -31,25 +31,35 @@ func TestParseArgsAndValidate(t *testing.T) {
 		},
 		{
 			name:    "missing objective",
-			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--engagement", "acme"},
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--client", "Acme", "--engagement", "acme", "--authorization", "Signed SOW #1"},
 			wantErr: "--objective",
 		},
 		{
+			name:    "missing client",
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--engagement", "acme", "--authorization", "Signed SOW #1", "--objective", "test"},
+			wantErr: "--client",
+		},
+		{
+			name:    "missing authorization",
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--client", "Acme", "--engagement", "acme", "--objective", "test"},
+			wantErr: "--authorization",
+		},
+		{
 			name:    "missing engagement",
-			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--objective", "test"},
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-c2-url", "https://c2:8080", "--reaper-username", "op1", "--client", "Acme", "--authorization", "Signed SOW #1", "--objective", "test"},
 			wantErr: "--engagement",
 		},
 		{
 			name:    "missing c2 url",
-			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-username", "op1", "--engagement", "acme", "--objective", "test"},
+			args:    []string{"--reaper-url", "https://c2:8443", "--reaper-username", "op1", "--client", "Acme", "--engagement", "acme", "--authorization", "Signed SOW #1", "--objective", "test"},
 			wantErr: "--reaper-c2-url",
 		},
 		{
 			name: "bad scheme",
 			args: []string{
 				"--reaper-url", "ftp://c2", "--reaper-c2-url", "https://c2:8080",
-				"--reaper-username", "op1", "--engagement", "acme",
-				"--objective", "test",
+				"--reaper-username", "op1", "--client", "Acme", "--engagement", "acme",
+				"--authorization", "Signed SOW #1", "--objective", "test",
 			},
 			wantErr: "http:// or https://",
 		},
@@ -57,8 +67,8 @@ func TestParseArgsAndValidate(t *testing.T) {
 			name: "bad c2 scheme",
 			args: []string{
 				"--reaper-url", "https://c2:8443", "--reaper-c2-url", "ftp://c2:8080",
-				"--reaper-username", "op1", "--engagement", "acme",
-				"--objective", "test",
+				"--reaper-username", "op1", "--client", "Acme", "--engagement", "acme",
+				"--authorization", "Signed SOW #1", "--objective", "test",
 			},
 			wantErr: "--reaper-c2-url must start with http:// or https://",
 		},
@@ -68,7 +78,9 @@ func TestParseArgsAndValidate(t *testing.T) {
 				"--reaper-url", "https://c2.example.com:8443",
 				"--reaper-c2-url", "https://c2.example.com:8443/",
 				"--reaper-username", "op1",
+				"--client", "Acme",
 				"--engagement", "acme",
+				"--authorization", "Signed SOW #1",
 				"--objective", "test",
 			},
 			wantErr: "must differ",
@@ -79,7 +91,9 @@ func TestParseArgsAndValidate(t *testing.T) {
 				"--reaper-url", "https://c2.example.com:8443",
 				"--reaper-c2-url", "https://c2.example.com:8080",
 				"--reaper-username", "op1",
+				"--client", "Acme Corp",
 				"--engagement", "acme-2026-q3",
+				"--authorization", "Signed SOW #2026-114, ROE dated 2026-09-01 to 2026-09-15",
 				"--objective", "Get domain admin",
 				"--objective", "Reach the finance share",
 			},
@@ -169,13 +183,16 @@ func TestParseArgsEnvFallback(t *testing.T) {
 }
 
 func TestFinalizeDefaults(t *testing.T) {
-	cfg := &Config{Engagement: "acme-2026-q3"}
+	cfg := &Config{Engagement: "acme-2026-q3", Client: "Acme Corp", Authorization: "Signed SOW #1"}
 	cfg.Finalize()
 	if cfg.Engagement != "acme-2026-q3" {
 		t.Errorf("Engagement = %q, Finalize must not invent an engagement name", cfg.Engagement)
 	}
-	if cfg.Client != "<UPDATE ME>" {
-		t.Errorf("Client = %q", cfg.Client)
+	if cfg.Client != "Acme Corp" {
+		t.Errorf("Finalize must not invent or alter Client, got %q", cfg.Client)
+	}
+	if cfg.Authorization != "Signed SOW #1" {
+		t.Errorf("Finalize must not invent or alter Authorization, got %q", cfg.Authorization)
 	}
 	if cfg.SessionsDir != "sessions" {
 		t.Errorf("SessionsDir = %q", cfg.SessionsDir)
@@ -186,6 +203,40 @@ func TestFinalizeDefaults(t *testing.T) {
 	if cfg2.Engagement != "acme" || cfg2.Client != "Acme" || cfg2.SessionsDir != "custom" {
 		t.Errorf("Finalize overwrote explicit values: engagement=%q client=%q sessionsDir=%q",
 			cfg2.Engagement, cfg2.Client, cfg2.SessionsDir)
+	}
+}
+
+// TestValidateKillswitchRequiresClientAndAuthorization is the regression test
+// for the scope-gate killswitch: even with every ReaperC2 connection detail
+// and an objective present, Validate must still refuse to proceed without an
+// explicit named client and an explicit authorization/ROE statement. Neither
+// field may be silently defaulted anywhere in this package.
+func TestValidateKillswitchRequiresClientAndAuthorization(t *testing.T) {
+	base := Config{
+		ReaperURL:      "https://c2.example.com:8443",
+		ReaperC2URL:    "https://c2.example.com:8080",
+		ReaperUsername: "op1",
+		Engagement:     "acme-2026-q3",
+		Objectives:     []string{"Get domain admin"},
+	}
+
+	withoutClient := base
+	withoutClient.Authorization = "Signed SOW #1"
+	if err := withoutClient.Validate(); err == nil || !strings.Contains(err.Error(), "--client") {
+		t.Fatalf("Validate() with no Client = %v, want an error naming --client", err)
+	}
+
+	withoutAuthorization := base
+	withoutAuthorization.Client = "Acme Corp"
+	if err := withoutAuthorization.Validate(); err == nil || !strings.Contains(err.Error(), "--authorization") {
+		t.Fatalf("Validate() with no Authorization = %v, want an error naming --authorization", err)
+	}
+
+	complete := base
+	complete.Client = "Acme Corp"
+	complete.Authorization = "Signed SOW #1"
+	if err := complete.Validate(); err != nil {
+		t.Fatalf("Validate() with client+authorization set = %v, want no error", err)
 	}
 }
 

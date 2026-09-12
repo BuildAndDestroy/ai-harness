@@ -26,9 +26,12 @@ engagement ("harness run"), launched via the `harness` Go binary (`cmd/harness`)
 ## Starting an engagement
 
 Run the `harness` binary rather than starting a bare Claude Code session by
-hand — it requires a ReaperC2 admin URL, a separate beacon C2 URL, username,
-password, a named engagement, and at least one clear objective, and refuses to
-proceed without them:
+hand. It is a scope-gate **killswitch**: it requires a ReaperC2 admin URL, a
+separate beacon C2 URL, username, password, a named client, a named
+engagement, an explicit written-authorization/ROE statement, and at least one
+clear objective — and refuses to build a session prompt or launch `claude` if
+any of them is missing. None of these have silent defaults; gather them from
+the operator before running this, not after:
 
 ```
 go build -o bin/harness ./cmd/harness
@@ -36,6 +39,7 @@ go build -o bin/harness ./cmd/harness
 bin/harness --reaper-url https://c2.example.com:8443 \
   --reaper-c2-url https://c2.example.com:8080 --reaper-username op1 \
   --client "Acme Corp" --engagement "acme-2026-q3" \
+  --authorization "Signed SOW #2026-114, ROE dated 2026-09-01 to 2026-09-15" \
   --objective "Obtain domain admin from an external foothold" \
   --objective "Demonstrate access to the finance file share"
 ```
@@ -45,15 +49,22 @@ or via Docker (see `README.md` for the full container workflow):
 ```
 docker compose run --rm harness --reaper-url https://c2.example.com:8443 \
   --reaper-c2-url https://c2.example.com:8080 --reaper-username op1 \
-  --engagement "acme-2026-q3" \
+  --client "Acme Corp" --engagement "acme-2026-q3" \
+  --authorization "Signed SOW #2026-114, ROE dated 2026-09-01 to 2026-09-15" \
   --objective "Obtain domain admin from an external foothold"
 ```
 
-It builds the initial prompt referencing all five skills and the objectives, keeps
-the password out of that prompt/session file (it's exported only into the launched
-process's environment as `$REAPER_PASSWORD`), and hands off to `claude`. See
-`bin/harness --help` for all options, including `--dry-run` to review the prompt
-before it's used, and `--objectives-file` for longer objective lists.
+It builds the initial prompt referencing all five skills, the authorization
+statement, and the objectives, keeps the password out of that prompt/session
+file (it's exported only into the launched process's environment as
+`$REAPER_PASSWORD`), and hands off to `claude`. See `bin/harness --help` for
+all options, including `--dry-run` to review the prompt before it's used, and
+`--objectives-file` for longer objective lists.
+
+If you're ever driving one of the five skills directly in a bare Claude Code
+session (not launched via this binary — its own required-input gate doesn't
+run in that case), the scope gate below still applies: don't proceed until the
+operator has stated it in the conversation.
 
 ## Standing rules for all five skills
 
