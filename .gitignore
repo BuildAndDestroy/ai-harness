@@ -1,0 +1,8 @@
+# Engagement session prompts contain client names/objectives — not for version control.
+/sessions/
+
+# Go build output
+/bin/
+
+# Local secrets for docker compose
+.env
