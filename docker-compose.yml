@@ -1,0 +1,18 @@
+services:
+  harness:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-harness:local
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      REAPER_URL: ${REAPER_URL:-}
+      REAPER_USERNAME: ${REAPER_USERNAME:-}
+      REAPER_PASSWORD: ${REAPER_PASSWORD:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./sessions:/workspace/sessions
+    stdin_open: true
+    tty: true

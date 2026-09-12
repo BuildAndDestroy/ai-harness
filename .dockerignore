@@ -1,0 +1,5 @@
+.git
+sessions/
+.env
+*.md.bak
+bin/
