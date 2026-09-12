@@ -4,7 +4,7 @@
 # Builds natively on the platform running `docker buildx build` and cross-compiles
 # the Go binary for whatever target platform(s) are requested, so multi-arch
 # builds (linux/amd64, linux/arm64) don't need QEMU to run the compiler itself.
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
