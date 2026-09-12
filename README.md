@@ -89,6 +89,27 @@ go test ./...
 gofmt -l .   # should print nothing
 ```
 
+### Reproducing a Trivy CI failure locally
+
+`.github/workflows/trivy.yml` runs with `format: sarif`, which — unlike Trivy's
+default table output — writes results only to the SARIF file (visible in the repo's
+Security tab), not to the job log. To see the actual vulnerability table when the
+job fails:
+
+```
+docker build -t ai-harness:scan .
+
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v trivy-cache:/root/.cache/ \
+  ghcr.io/aquasecurity/trivy:0.36.0 image \
+  --severity CRITICAL,HIGH --ignore-unfixed --format table \
+  ai-harness:scan
+```
+
+(Match the version to whatever `trivy.yml`'s `aquasecurity/trivy-action` tag pins,
+so local results match CI.)
+
 `make build`, `make test`, `make vet`, `make fmt-check`, `make docker-build`, and
 `make docker-buildx` wrap the above.
 
