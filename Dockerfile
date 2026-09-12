@@ -27,11 +27,26 @@ FROM node:22-bookworm-slim AS runtime
 
 ARG CLAUDE_CODE_VERSION=latest
 
+# apt-get upgrade pulls in Debian security-repo fixes published after this
+# base image's layer was snapshotted (e.g. libpcre2-8-0); npm@latest replaces
+# the Node image's bundled npm, which carries its own dated transitive deps
+# (pacote/tar/sigstore/ip-address/brace-expansion/picomatch) — both matter for
+# the Trivy scan in CI, not just functionality.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ca-certificates git curl \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
-    && npm cache clean --force
+    && npm install -g npm@latest \
+    # npm now blocks postinstall scripts by default unless explicitly
+    # allow-listed; claude-code's postinstall fetches its native binary, so it
+    # must be allowed or the CLI is left non-functional.
+    && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
+    && npm cache clean --force \
+    # claude resolves to a native binary (bin/claude.exe) and needs neither
+    # node nor npm at runtime — only npm itself was used to fetch it. Drop
+    # npm's own bundled node_modules (its vendored pacote/tar/ip-address/etc.,
+    # which trail their own CVEs) now that it's served its purpose.
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin harness
 
