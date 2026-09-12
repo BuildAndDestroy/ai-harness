@@ -21,6 +21,7 @@ type Config struct {
 	ReaperPassword string
 	Client         string
 	Engagement     string
+	Authorization  string
 	SessionsDir    string
 	Objectives     []string
 	DryRun         bool
@@ -36,8 +37,8 @@ func (c Config) String() string {
 		passwordState = "<redacted>"
 	}
 	return fmt.Sprintf(
-		"Config{ReaperURL:%q ReaperC2URL:%q ReaperUsername:%q ReaperPassword:%s Client:%q Engagement:%q SessionsDir:%q Objectives:%v DryRun:%v}",
-		c.ReaperURL, c.ReaperC2URL, c.ReaperUsername, passwordState, c.Client, c.Engagement, c.SessionsDir, c.Objectives, c.DryRun,
+		"Config{ReaperURL:%q ReaperC2URL:%q ReaperUsername:%q ReaperPassword:%s Client:%q Engagement:%q Authorization:%q SessionsDir:%q Objectives:%v DryRun:%v}",
+		c.ReaperURL, c.ReaperC2URL, c.ReaperUsername, passwordState, c.Client, c.Engagement, c.Authorization, c.SessionsDir, c.Objectives, c.DryRun,
 	)
 }
 
@@ -53,7 +54,13 @@ func (s *stringSlice) Set(v string) error {
 
 // UsageText is the full CLI help text, shared by -h/--help and validation errors.
 const UsageText = `Usage: harness --reaper-url URL --reaper-c2-url URL --reaper-username USER \
-         --engagement NAME --objective "text" [--objective "text" ...] [options]
+         --client NAME --engagement NAME --authorization TEXT \
+         --objective "text" [--objective "text" ...] [options]
+
+This is a scope-gate killswitch: the run refuses to build a session or launch
+claude unless every required input below is explicitly provided. There are no
+silent defaults for client, authorization, or objectives — if you haven't
+gathered them yet, gather them before running this.
 
 Required:
   --reaper-url URL          ReaperC2 admin panel / operator dashboard base URL
@@ -62,7 +69,15 @@ Required:
                             (e.g. https://c2.example.com:8080). Must differ from
                             --reaper-url; beacons phone home here, not the dashboard.
   --reaper-username USER    ReaperC2 operator username
+  --client NAME             Named client/customer this engagement is for (use a
+                            self-owned label like "Internal Lab" if there is no
+                            external client — never left blank or guessed).
   --engagement NAME         Engagement / workspace name this run is scoped to
+  --authorization TEXT      Written authorization / rules-of-engagement basis for
+                            this run (e.g. a signed SOW reference and dates, or
+                            an explicit self-authorization statement that you own
+                            or control every in-scope system). At least one
+                            required.
   --objective TEXT          One engagement objective. Repeat for multiple. At least one required.
 
 One of these is required for the password (never pass it as a bare CLI arg in shared shells):
@@ -71,7 +86,6 @@ One of these is required for the password (never pass it as a bare CLI arg in sh
   (omit both to be prompted interactively, input hidden — requires a TTY)
 
 Optional:
-  --client NAME             Client / customer name for the report
   --objectives-file PATH    Read additional objectives, one per line
   --sessions-dir PATH       Where to write the session prompt file (default: sessions)
   --dry-run                 Build and print the prompt, don't launch claude
@@ -80,6 +94,7 @@ Optional:
 Examples:
   harness --reaper-url https://c2.internal:8443 --reaper-c2-url https://c2.internal:8080 \
     --reaper-username op1 --client "Acme Corp" --engagement "acme-2026-q3" \
+    --authorization "Signed SOW #2026-114, ROE dated 2026-09-01 to 2026-09-15" \
     --objective "Obtain domain admin from an external foothold" \
     --objective "Demonstrate access to the finance file share"
 `
@@ -108,8 +123,9 @@ func ParseArgs(args []string, stderr io.Writer) (*Config, error) {
 	fs.StringVar(&cfg.ReaperC2URL, "reaper-c2-url", cfg.ReaperC2URL, "ReaperC2 beacon listener / implant C2 base URL")
 	fs.StringVar(&cfg.ReaperUsername, "reaper-username", cfg.ReaperUsername, "ReaperC2 operator username")
 	fs.StringVar(&cfg.ReaperPassword, "reaper-password", cfg.ReaperPassword, "ReaperC2 operator password")
-	fs.StringVar(&cfg.Client, "client", "", "Client / customer name")
+	fs.StringVar(&cfg.Client, "client", "", "Named client / customer this engagement is for (required)")
 	fs.StringVar(&cfg.Engagement, "engagement", cfg.Engagement, "Engagement name this run is scoped to")
+	fs.StringVar(&cfg.Authorization, "authorization", "", "Written authorization / rules-of-engagement basis for this run (required)")
 	fs.StringVar(&cfg.SessionsDir, "sessions-dir", "sessions", "Where to write the session prompt file")
 	fs.Var(&objectives, "objective", "Engagement objective (repeatable)")
 	fs.StringVar(&objectivesFile, "objectives-file", "", "Path to a file of objectives, one per line")
@@ -162,8 +178,14 @@ func (c *Config) Validate() error {
 	if c.ReaperUsername == "" {
 		missing = append(missing, "--reaper-username")
 	}
+	if c.Client == "" {
+		missing = append(missing, "--client")
+	}
 	if c.Engagement == "" {
 		missing = append(missing, "--engagement")
+	}
+	if c.Authorization == "" {
+		missing = append(missing, "--authorization")
 	}
 	if len(c.Objectives) == 0 {
 		missing = append(missing, "--objective (at least one)")
@@ -197,13 +219,11 @@ func normalizeURL(raw string) string {
 	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
-// Finalize fills in defaults that depend on runtime state (a placeholder
-// client name). Call after Validate succeeds. Engagement is required and is
-// never generated here — the run stays scoped to the name the operator gave.
+// Finalize fills in defaults that depend on runtime state. Call after Validate
+// succeeds. Client, Engagement, and Authorization are all required by Validate
+// and are never invented here — the run stays scoped to exactly what the
+// operator gave.
 func (c *Config) Finalize() {
-	if c.Client == "" {
-		c.Client = "<UPDATE ME>"
-	}
 	if c.SessionsDir == "" {
 		c.SessionsDir = "sessions"
 	}

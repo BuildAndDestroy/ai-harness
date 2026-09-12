@@ -13,6 +13,7 @@ func TestBuildPromptOmitsPasswordAndListsSkills(t *testing.T) {
 		ReaperPassword: "super-secret-value",
 		Client:         "Acme Corp",
 		Engagement:     "acme-2026-q3",
+		Authorization:  "Signed SOW #2026-114, ROE dated 2026-09-01 to 2026-09-15",
 		Objectives:     []string{"Get domain admin", "Reach the finance share"},
 	}
 
@@ -41,7 +42,7 @@ func TestBuildPromptOmitsPasswordAndListsSkills(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		cfg.Client, cfg.Engagement, cfg.ReaperURL, cfg.ReaperC2URL, cfg.ReaperUsername,
+		cfg.Client, cfg.Engagement, cfg.Authorization, cfg.ReaperURL, cfg.ReaperC2URL, cfg.ReaperUsername,
 		"Get domain admin", "Reach the finance share",
 		"$REAPER_C2_URL", "Notes & ATT&CK", "command output",
 	} {

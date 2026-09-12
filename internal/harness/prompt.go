@@ -22,6 +22,7 @@ type promptData struct {
 	ReaperUsername string
 	Client         string
 	Engagement     string
+	Authorization  string
 	Objectives     []string
 }
 
@@ -35,6 +36,7 @@ func BuildPrompt(cfg Config) (string, error) {
 		ReaperUsername: cfg.ReaperUsername,
 		Client:         cfg.Client,
 		Engagement:     cfg.Engagement,
+		Authorization:  cfg.Authorization,
 		Objectives:     cfg.Objectives,
 	}
 
