@@ -1,0 +1,174 @@
+{
+  "client": {
+    "name": "Internal Lab",
+    "contacts": [
+      {"name": "<UPDATE ME>", "job_title": "<UPDATE ME>", "email": "<UPDATE ME>"}
+    ]
+  },
+  "team": [
+    {"name": "<Company> Operator", "role": "Red Team Lead", "email": "<UPDATE ME>", "phone": "<UPDATE ME>"}
+  ],
+  "infrastructure": {
+    "domains": [
+      {"domain": "metrics.harvestrangelabs.com", "activity": "ReaperC2 beacon C2 (HTTPS)"}
+    ],
+    "servers": [
+      {"ip_address": "127.0.0.1:8443", "activity": "ReaperC2 admin dashboard (local)", "role": "C2 admin panel"},
+      {"ip_address": "10.0.20.243:8000", "activity": "Staging HTTP server (beacon delivery)", "role": "Tooling host"},
+      {"ip_address": "metrics.harvestrangelabs.com", "activity": "Beacon C2 endpoint", "role": "C2 (external)"}
+    ],
+    "cloud": []
+  },
+  "targets": [
+    {"ip_address": "10.0.20.75:30280", "hostname": "DVWA web application (NodePort)"}
+  ],
+  "objectives": [
+    {"percent_complete": "100%", "objective": "Obtain RCE on the DVWA web application pod"},
+    {"percent_complete": "100%", "objective": "Establish persistence with a ReaperC2 beacon"},
+    {"percent_complete": "0%", "objective": "Obtain root on the webapp pod (blocked - no compatible kernel LPE)"},
+    {"percent_complete": "0%", "objective": "Get host-level execution access (blocked - hardened container + patched kernel)"}
+  ],
+  "scope": [
+    {"name": "DVWA web app (http://10.0.20.75:30280/)", "description_rt": "Exposed NodePort; command injection, authentication bypass, and post-exploitation of the hosting pod."},
+    {"name": "Kubernetes backend (test cluster)", "description_rt": "Worker node k8s-worker1 (10.0.20.75), kubelet, pod service account, and node kernel as test infra with snapshots."},
+    {"name": "ReaperC2 C2 (metrics.harvestrangelabs.com)", "description_rt": "Beacon C2 and admin panel for persistence and command queuing."}
+  ],
+  "whitecards": [
+    {"title": "Default application credentials", "issued": "Pre-engagement", "description": "Operator-supplied admin / password for DVWA"},
+    {"title": "kubectl access to test cluster", "issued": "On request", "description": "Operator provided cluster-admin kubectl for pod/node recovery (test infra only)"}
+  ],
+  "findings": [
+    {
+      "severity": "Critical",
+      "severity_color": "#fe0000",
+      "title": "DVWA Command Injection - Remote Code Execution",
+      "cvss_score": "9.8 (AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H)",
+      "affected_entities_rt": "DVWA pod (dvwa-78d998d9bd-*) on k8s-worker1, exposed at http://10.0.20.75:30280/.",
+      "description_rt": "The /vulnerabilities/exec/ endpoint of DVWA at security level \"low\" passes the user-supplied ip parameter unsanitized to PHP shell_exec, allowing shell metacharacter injection. A payload of the form 127.0.0.1; <command> executes arbitrary commands as the web-server user.",
+      "impact_rt": "Unauthenticated-to-RCE on the application pod, enabling full compromise of the pod, deployment of persistent C2, and a launch point for in-cluster movement and kernel-level privilege escalation against the host node.",
+      "replication_steps_rt": "Authenticate to DVWA (admin/password), set security level to \"low\", POST ip=127.0.0.1; id&Submit=Submit to /vulnerabilities/exec/; observe uid=33(www-data) in the <pre> response block.",
+      "host_detection_techniques_rt": "Alert on sh/bash/shell_exec child processes of the Apache/PHP-FPM worker; alert on outbound curl/wget from the www-data user; web WAF rule for ; | && $( backtick metacharacters in the ip parameter.",
+      "recommendation_rt": "Never expose DVWA outside isolated training environments. Where required, set security level to \"impossible\" (prepared statements + escapeshellarg), enforce non-default credentials, and front with a WAF."
+    },
+    {
+      "severity": "High",
+      "severity_color": "#ff8800",
+      "title": "DVWA Default / Weak Credentials",
+      "cvss_score": "7.5 (AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N)",
+      "affected_entities_rt": "DVWA pod login at http://10.0.20.75:30280/login.php.",
+      "description_rt": "DVWA shipped with the default admin / password credential pair, which the operator used as the assumed-breach starting point. Default credentials are a trivial first step for any adversary once the application is reachable.",
+      "impact_rt": "Direct authentication bypass, removing the only barrier between an external attacker and the command-injection flaw.",
+      "replication_steps_rt": "Browse to /login.php, submit admin/password; observe redirect to index.php.",
+      "host_detection_techniques_rt": "Alert on successful login using the known default admin credential from an external source IP; periodic credential audit.",
+      "recommendation_rt": "Enforce non-default, strong credentials on first deploy; remove default accounts; add MFA where the application supports it."
+    },
+    {
+      "severity": "High",
+      "severity_color": "#ff8800",
+      "title": "Excessive Linux Capabilities and Disabled seccomp on Application Pod",
+      "cvss_score": "7.0 (AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H) - post-RCE enabler",
+      "affected_entities_rt": "DVWA pod on k8s-worker1.",
+      "description_rt": "The pod ran with PID 1 effective capabilities 0xa80425fb including CAP_SETUID, CAP_DAC_OVERRIDE, CAP_NET_RAW, CAP_SYS_CHROOT, and CAP_MKNOD, with seccomp disabled and user namespaces enabled. The www-data shell retained the full bounding set (caps droppable but not gained without a SUID/file-cap binary).",
+      "impact_rt": "These capabilities are prerequisites for the kernel-LPE techniques attempted (raw sockets, user+net namespace creation, FIB rule manipulation) and for potential device-node-based host-disk access. They materially widened the post-RCE blast radius.",
+      "replication_steps_rt": "From RCE, run grep Cap /proc/1/status (shows CapEff: 00000000a80425fb) and cat /proc/self/status | grep Cap (shows CapEff: 0, CapBnd: 00000000a80425fb).",
+      "host_detection_techniques_rt": "Audit pod security context at admission (OPA/Kyverno policy denying broad caps and seccomp=Unconfined); alert on unshare/clone with namespace flags from container processes.",
+      "recommendation_rt": "Drop all capabilities, set seccompProfile: RuntimeDefault, runAsNonRoot: true, readOnlyRootFilesystem: true; remove CAP_NET_RAW/CAP_MKNOD/CAP_SYS_CHROOT/CAP_SETUID."
+    },
+    {
+      "severity": "Medium",
+      "severity_color": "#fdd800",
+      "title": "Unpatched Kernel - Exploitable CVEs Present (CVE-2026-74581, CVE-2026-64560)",
+      "cvss_score": "7.8 (AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H)",
+      "affected_entities_rt": "Worker node k8s-worker1, kernel 5.15.0-191-generic.",
+      "description_rt": "The node kernel (5.15.0-191, built Aug 7 2026) is vulnerable to CVE-2026-74581 (IPv6 FIB rule UAF, fixed 5.15.216) and CVE-2026-64560 (posix-cpu-timers UAF, fixed 5.15.213). The KASLR protection was demonstrably defeated against CVE-2026-74581 (kernel base leaked: 0xffffffff9e600000).",
+      "impact_rt": "A working kernel LPE (once a compatible exploit exists) would allow container escape to host root. The KASLR leak proves the protection is bypassable on this build.",
+      "replication_steps_rt": "From pod RCE, run the CVE-2026-74581 PoC --leak-only/leak stage; observe leaked KASLR base. Run the CVE-2026-64560 trigger --check; observe prerequisites OK.",
+      "host_detection_techniques_rt": "Kernel-patch compliance scan; alert on unshare(CLONE_NEWUSER|CLONE_NEWNET) + RTM_NEWRULE/FIB rule churn from containers; anomalous timer_create/timer_delete storm.",
+      "recommendation_rt": "Patch kernel to >= 5.15.216; enable live-patching / rolling node updates."
+    },
+    {
+      "severity": "Informational",
+      "severity_color": "#9aa0a6",
+      "title": "Kubelet API Reachable from Pod (anonymous auth correctly disabled)",
+      "cvss_score": "0.0 (Informational)",
+      "affected_entities_rt": "Worker node k8s-worker1 kubelet on :10250.",
+      "description_rt": "The kubelet API (:10250) was network-reachable from inside the pod but correctly returned Unauthorized for anonymous requests and Forbidden for the pod's default service-account token (nodes/proxy denied by webhook). This is the expected secure configuration; recorded for completeness.",
+      "impact_rt": "None directly; confirms the kubelet authn/authz boundary held.",
+      "replication_steps_rt": "curl -sk https://10.0.20.75:10250/pods -> Unauthorized; with SA bearer -> Forbidden (... verb=get, resource=nodes, subresource=[proxy]).",
+      "host_detection_techniques_rt": "Monitor kubelet audit logs for anonymous/bearer denials; ensure --anonymous-auth=false remains set.",
+      "recommendation_rt": "No change required; maintain current kubelet auth settings. Optionally restrict :10250 at the network policy layer to control-plane components only."
+    }
+  ],
+  "attack_narrative": [
+    {
+      "step": "Critical Step 1 - Reconnaissance and Initial Access via DVWA Command Injection",
+      "tactic": "TA0001 / TA0002",
+      "techniques": "T1190 Exploit Public-Facing Application; T1059.004 Unix Shell",
+      "narrative": "DVWA reachable on http://10.0.20.75:30280/. Using default credentials, authenticated and set security level to low. The /vulnerabilities/exec/ endpoint accepted an ip parameter with no input sanitization, allowing metacharacter injection. A payload 127.0.0.1; <command> was processed by PHP shell_exec, yielding remote code execution as www-data (uid 33) on the application pod (dvwa-78d998d9bd-*)."
+    },
+    {
+      "step": "Critical Step 2 - Persistence: ReaperC2 Beacon Delivery and C2 Establishment",
+      "tactic": "TA0011 / TA0003",
+      "techniques": "T1071.001 Web Protocols; T1105 Ingress Tool Transfer; T1573.002 Asymmetric Cryptography",
+      "narrative": "A ReaperC2 beacon binary (dvwa-parent.bin, ~10 MB) was staged on 10.0.20.243:8000 and pulled into the pod with curl to /dev/shm/dvwa-parent.bin, made executable, and launched with TERM_HARVEST=9. The beacon established an HTTPS C2 channel to metrics.harvestrangelabs.com, polling every 30 seconds. ReaperC2 registered the beacon with ClientId a6e02d08-f2b9-4641-ac1f-a292e1a8f616; the beacon log confirmed status:ok and Active:true responses, and a SOCKS5 proxy listener on :8181. The beacon survived a pod restart by being re-delivered (not reboot-persistent since /dev/shm is wiped on pod restart)."
+    },
+    {
+      "step": "Critical Step 3 - Discovery: Container, Kubernetes, and Privilege-Escalation Surface",
+      "tactic": "TA0007",
+      "techniques": "T1082 System Information Discovery; T1613 Container and Resource Discovery",
+      "narrative": "From the www-data shell, enumerated the environment: kernel 5.15.0-191-generic; seccomp disabled; user namespaces enabled; PID 1 CapEff=0xa80425fb (CAP_SETUID, CAP_DAC_OVERRIDE, CAP_NET_RAW, CAP_SYS_CHROOT, CAP_MKNOD) while the www-data shell had CapEff=0 with the same bounding set; SUID set limited to standard Debian binaries with no pkexec/sudo and no file-capability binaries; /etc/passwd 644, /etc/shadow 640 root:shadow; no useful cron; no writable root-owned paths. Kubernetes: pod used the default service account (system:serviceaccount:dvwa:default) with no RBAC; kubelet :10250 reachable but webhook-denied nodes/proxy; no cloud metadata endpoint responded."
+    },
+    {
+      "step": "Critical Step 4 - Privilege Escalation: Kernel LPE Attempts (Not Achieved)",
+      "tactic": "TA0004",
+      "techniques": "T1068.001 Kernel Exploitation (attempted, unsuccessful); T1611 Escape to Host (attempted, unsuccessful)",
+      "narrative": "Two kernel LPE attempts against 5.15.0-191-generic: (1) CVE-2026-74581 (IPv6 FIB rule UAF, fixed 5.15.216) confirmed present; KASLR defeated (base 0xffffffff9e600000, slide 0x1d600000); the only public full PoC (NebuSec/CyberMeowfia) is hardcoded for Debian 6.12.101 - its ROP gadgets, CPU-Entry-Area physical offset (CPU1_CEA_PHYS_OFFSET), and core_pattern mode-field offset are 6.12-specific; on 5.15 the post-leak pivot targets the wrong physical page, causing a kernel panic that took k8s-worker1 down twice. The blocker is CPU1_CEA_PHYS_OFFSET: a runtime, per-boot physical address not statically derivable, with no runtime leak in the exploit. Abandoned. (2) CVE-2026-64560 (posix-cpu-timers UAF, fixed 5.15.213) confirmed reachable (--check passed as www-data); no public full exploit (trigger only). Standard privesc paths exhausted with no viable route. Root on the pod and host-level execution were not achieved."
+    }
+  ],
+  "observations_and_recommendations": [
+    {
+      "observation": "Unsanitized Command Injection in Exposed Web Application",
+      "recommendation": "Remove the DVWA NodePort exposure beyond the training environment. Where DVWA must be exposed, enforce the \"impossible\" security level, place it behind a WAF with command-injection signatures, and require non-default credentials. Never deploy DVWA on shared or production-adjacent clusters.",
+      "validation": "ART-T1059.004-dvwa-cmdi: send ip=127.0.0.1; id to /vulnerabilities/exec/ at security level low; expected uid=33(www-data) in the <pre> block. Detection: alert on shell_exec//bin/sh -c spawned by www-data as a child of the PHP/Apache worker, and on outbound curl to non-allowlisted hosts from the pod."
+    },
+    {
+      "observation": "Excessive Container Capabilities and Disabled seccomp",
+      "recommendation": "Drop all Linux capabilities except the minimum required; enable seccompProfile: RuntimeDefault (or a custom profile denying unshare, clone with CLONE_NEWUSER/NEWNET, raw sockets); set runAsNonRoot: true with a fixed non-root UID; set readOnlyRootFilesystem: true; remove CAP_NET_RAW, CAP_MKNOD, CAP_SYS_CHROOT, CAP_SETUID from the pod spec.",
+      "validation": "ART-T1611-cap-surface: from inside the pod run grep Cap /proc/1/status and cat /proc/self/status | grep Cap; expected after remediation: CapEff: 0 for PID 1 and CapBnd reduced to only required caps, and unshare -Urn to fail under the seccomp profile."
+    },
+    {
+      "observation": "Kernel Lagging Stable Security Patches",
+      "recommendation": "Patch the node kernel to at least 5.15.216 (fixes CVE-2026-74581) and preferably 5.15.213+ (fixes CVE-2026-64560). Enable a kernel live-patching pipeline or scheduled node rolling-updates. Keep KASLR on and add kernel hardening (page_alloc.shuffle=1, slab freelist randomization).",
+      "validation": "ART-T1068.001-kernel-version: uname -r on the node; expected >= 5.15.216. Re-run the CVE-2026-74581 KASLR-leak trigger and confirm it no longer leaks a stable base on patched kernels."
+    },
+    {
+      "observation": "Unrestricted Pod Egress Enabled Beacon C2",
+      "recommendation": "Apply a Kubernetes NetworkPolicy restricting pod egress to only required destinations/ports; block arbitrary outbound to the beacon C2 domain and to internal staging hosts.",
+      "validation": "ART-T1071.001-beacon-egress: attempt a beacon check-in to metrics.harvestrangelabs.com from the pod; expected after remediation: the connection is denied by the NetworkPolicy and logged by the CNI (Calico) flow logs."
+    }
+  ],
+  "attack_killchain": [
+    {"tactic": "TA0043", "tactic_name": "Reconnaissance", "techniques": "T1595.002 - Active Scanning: Vulnerability Scanning"},
+    {"tactic": "TA0042", "tactic_name": "Resource Development", "techniques": "T1583.001 - Acquire Infrastructure: Domains (C2 FQDN); T1583.004 - Acquire Infrastructure: Servers (ReaperC2 server)"},
+    {"tactic": "TA0001", "tactic_name": "Initial Access", "techniques": "T1190 - Exploit Public-Facing Application; T1078.001 - Valid Accounts: Default Accounts"},
+    {"tactic": "TA0002", "tactic_name": "Execution", "techniques": "T1059.004 - Unix Shell; T1204.002 - User Execution: Malicious File (beacon binary)"},
+    {"tactic": "TA0003", "tactic_name": "Persistence", "techniques": "(live C2 process foothold; not autostart-persistent - see Critical Step 2)"},
+    {"tactic": "TA0004", "tactic_name": "Privilege Escalation", "techniques": "T1068.001 - Exploitation for Privilege Escalation: Kernel (attempted, unsuccessful); T1611 - Escape to Host (attempted, unsuccessful)"},
+    {"tactic": "TA0005", "tactic_name": "Stealth", "techniques": ""},
+    {"tactic": "TA0112", "tactic_name": "Defense Impairment", "techniques": ""},
+    {"tactic": "TA0006", "tactic_name": "Credential Access", "techniques": ""},
+    {"tactic": "TA0007", "tactic_name": "Discovery", "techniques": "T1082 - System Information Discovery; T1613 - Container and Resource Discovery"},
+    {"tactic": "TA0008", "tactic_name": "Lateral Movement", "techniques": ""},
+    {"tactic": "TA0009", "tactic_name": "Collection", "techniques": ""},
+    {"tactic": "TA0011", "tactic_name": "Command and Control", "techniques": "T1071.001 - Web Protocols (HTTPS beacon); T1105 - Ingress Tool Transfer (beacon download); T1573.002 - Encrypted Channel: Asymmetric Cryptography (TLS)"},
+    {"tactic": "TA0010", "tactic_name": "Exfiltration", "techniques": ""},
+    {"tactic": "TA0040", "tactic_name": "Impact", "techniques": ""}
+  ],
+  "navigator_layer": "<UPDATE ME: attach ReaperC2 Reports export - STIX v19 layer JSON for https://mitre-attack.github.io/attack-navigator/>",
+  "timeline": {
+    "c2_logs": "2026/09/13 04:17:18 [+] Starting request loop. Sending requests every 30s...\n2026/09/13 04:17:18 [+] SOCKS5 proxy server listening on :8181\n2026/09/13 04:17:18 {\"status\":\"ok\"}\n2026/09/13 04:17:48 {\"status\":\"ok\"}\n2026/09/13 04:26:49 {\"Active\":true,\"ClientId\":\"a6e02d08-f2b9-4641-ac1f-a292e1a8f616\",\"Commands\":[]}\n2026/09/13 04:27:19 {\"status\":\"ok\"}",
+    "c2_sessions": "Beacon: dvwa-parent (dvwa-rce / dvwa-pivot-parent)\nClientId: a6e02d08-f2b9-4641-ac1f-a292e1a8f616\nHost: dvwa-78d998d9bd-* (k8s-worker1, 10.0.20.75)\nUser: www-data (uid 33)\nC2: https://metrics.harvestrangelabs.com (HTTPS, 30s interval)\nProxy: SOCKS5 on :8181\nFirst check-in: 2026-09-13 04:17:18 UTC\nStatus at report time: Active (PID 128, uptime 10+ min)",
+    "attack_simulation": "T+00:00 Reconnaissance: DVWA NodePort 30280 confirmed reachable (HTTP 200).\nT+00:02 Initial Access: authenticated with admin/password; set security=low.\nT+00:04 Execution: command injection via /vulnerabilities/exec/ -> RCE as www-data.\nT+00:08 Persistence: dvwa-parent.bin delivered to /dev/shm, beacon C2 established.\nT+00:15 Discovery: enumerated kernel/caps/SUID/cron/K8s SA/kubelet/metadata.\nT+00:25 Privilege Escalation: CVE-2026-74581 KASLR leak succeeded (base 0xffffffff9e600000).\nT+00:30 Privilege Escalation: CVE-2026-74581 pivot -> kernel panic #1 (k8s-worker1 NotReady).\nT+01:00 (Node recovered via kubectl; pod rescheduled.)\nT+01:05 Privilege Escalation: CVE-2026-74581 retry -> kernel panic #2.\nT+01:30 (Node recovered; DVWA DB re-initialized.)\nT+01:35 Persistence: beacon re-delivered, re-established (ClientId a6e02d08...).\nT+01:40 Privilege Escalation: CVE-2026-64560 trigger --check passed (vuln confirmed reachable).\nT+01:45 Decision: no compatible 5.15 full LPE PoC; root/host escalation not achievable."
+  },
+  "conclusion": "The engagement successfully demonstrated the Get In and Stay In phases: an external adversary with the application's default credentials could obtain remote code execution on the DVWA application pod within minutes and establish a persistent, ReaperC2-controlled HTTPS C2 foothold that maintained a live session and re-established itself after a pod restart. The beacon (ClientId a6e02d08-f2b9-4641-ac1f-a292e1a8f616) remained active throughout. The Act phase (privilege escalation to root-on-pod or host-level execution) was not achieved. The container was hardened where it matters most: the Kubernetes service account was the unprivileged default SA with no RBAC, the kubelet correctly denied anonymous and bearer-token proxy access, no cloud metadata was exposed, and the standard local-privilege-escalation surface was clean. The only remaining avenue was a kernel LPE, and the node kernel (5.15.0-191-generic) - while confirmed vulnerable to CVE-2026-74581 and CVE-2026-64560 - had no public exploit compatible with this build: the sole full PoC for CVE-2026-74581 is hardcoded for Debian 6.12.101, and its CPU-Entry-Area physical-offset pivot cannot be statically ported to 5.15 (it is a runtime, per-boot value with no runtime leak in the exploit). Defeating KASLR alone was demonstrated, proving the protection is bypassable, but a complete root-shell chain was not attainable with publicly available tooling within the engagement. An external threat could realistically replicate the RCE-and-persistence path (low skill barrier); the kernel-escape path requires advanced, target-specific exploit development and is not currently achievable with public tooling - but the presence of unpatched, exploitable kernel CVEs and the excessive container capability set mean this boundary should not be relied upon. Overall, the Get In / Stay In posture is weak and should be remediated per the observations; the Act boundary held during this engagement, but primarily due to kernel-patch and exploit-availability luck rather than defense-in-depth - patching the kernel to 5.15.216+ and tightening the pod security context are the highest-priority improvements."
+}

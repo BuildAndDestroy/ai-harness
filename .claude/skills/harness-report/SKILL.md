@@ -53,10 +53,60 @@ describing them in prose.
   `red-team-operator`'s `attack-v19-tactics.md`), and note that some tactics
   legitimately have no techniques for a given engagement — the template explicitly
   allows leaving those blank rather than forcing an entry.
-- Default output format: the report as markdown, organized under the template's own
-  H1/H2 headings, so the operator can review it before it's transcribed into
-  Ghostwriter or the docx. If asked for a Ghostwriter-ready JSON context object
-  instead, use the exact variable names from the reference doc as keys.
+- **Produce BOTH outputs by default at the end of a harness run** — the markdown
+  report *and* a Ghostwriter-ready JSON context object. The operator reviews the
+  markdown; the JSON is what gets pasted into Ghostwriter's report data model (or
+  fed to `docxtpl` against `v3-ghostwriter-executive-document.docx`).
+  - Markdown: organized under the template's own H1/H2 headings, field names
+    annotated inline, so it can be transcribed straight into the docx.
+  - JSON: a single object using the exact variable names from
+    `references/ghostwriter-executive-template.md` as keys. Write it to
+    `engagement_report_<engagement>.json` next to the markdown report. Validate it
+    parses (`python3 -c "import json; json.load(open(...))"`) before handing off.
+
+## Ghostwriter JSON context schema
+
+The JSON object's top-level keys and their shapes (match the template's Jinja
+variables exactly; `_rt` keys are rich-text — paragraphed prose as a single string
+with `\n\n` between paragraphs, not a run-on):
+
+- `client`: `{ name, contacts: [ { name, job_title, email } ] }`
+- `team`: `[ { name, role, email, phone } ]`
+- `infrastructure`: `{ domains: [ { domain, activity } ], servers: [ { ip_address,
+  activity, role } ], cloud: [ { ip_address, activity, role } ] }`
+- `targets`: `[ { ip_address, hostname } ]`
+- `objectives`: `[ { percent_complete, objective } ]`
+- `scope`: `[ { name, description_rt } ]`
+- `whitecards`: `[ { title, issued, description } ]`
+- `findings`: `[ { severity, severity_color, title, cvss_score,
+  affected_entities_rt, description_rt, impact_rt, replication_steps_rt,
+  host_detection_techniques_rt, recommendation_rt } ]` — `severity_color` is a hex
+  string consumed by the template's `{% cellbg finding.severity_color %}` (use
+  Ghostwriter's severity palette, e.g. Critical `#fe0000`, High `#ff8800`, Medium
+  `#fdd800`, Low `#2f7bf3`, Informational `#9aa0a6`). Group/emit findings in
+  severity order Critical → High → Medium → Low → Informational; only emit a
+  severity that has findings.
+- `attack_narrative`: `[ { step, tactic, techniques, narrative } ]` — one entry per
+  Critical Step, tagged with the ATT&CK v19 tactic/techniques it exercises.
+- `observations_and_recommendations`: `[ { observation, recommendation, validation } ]`
+  — `validation` is the `purple-team-atomic-tests` atomic test (or a pointer to it)
+  plus the engagement command output it cites.
+- `attack_killchain`: `[ { tactic, tactic_name, techniques } ]` — one row per tactic
+  in v19 matrix order (all 15, including the Stealth `TA0005` / Defense Impairment
+  `TA0112` split); leave a tactic's `techniques` empty string if unused rather than
+  omitting the row.
+- `navigator_layer`: string — placeholder pointing at the ReaperC2 Reports export
+  (STIX v19) layer JSON for the ATT&CK Navigator link.
+- `timeline`: `{ c2_logs, c2_sessions, attack_simulation }` — each a string of
+  raw log/session/simulation text (codeblock content), sourced from
+  `reaperc2-operator` exports.
+- `conclusion`: string — written last; must not introduce any fact not already stated
+  earlier in the report.
+
+Keep the markdown report and the JSON in lockstep — same findings, severities,
+titles, narrative, and timeline. A worked example lives at
+`engagement_report_test.json` / `engagement_report_test.md` in the repo root (the
+Internal Lab "test" engagement) — treat it as the reference shape.
 
 ## When something doesn't fit the template
 
