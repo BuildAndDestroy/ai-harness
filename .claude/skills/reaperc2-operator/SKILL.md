@@ -65,7 +65,9 @@ this confusion; see Troubleshooting below.
    `remote_path`. Prefer small, sequenced commands over noisy one-liners so output is
    easy to attribute. After output lands, pull it (`GET /api/beacon-command-output`)
    — that is what Notes & ATT&CK and `purple-team-atomic-tests` cite. Do not invent
-   stdout.
+   stdout. A successful technique is a positive finding: hand it to
+   `purple-team-atomic-tests` as soon as that output lands. Do not wait for
+   `harness-report`.
 4. **Topology** (`/topology`, `GET /api/topology`) — pivot chain and beacon liveness
    (green = on time, yellow = missed one interval, gray = offline/unknown, relative
    to the beacon's configured interval). Check this before opening a new lateral-move

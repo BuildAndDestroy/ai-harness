@@ -7,9 +7,11 @@ standing rules; this file covers building and running the `harness` launcher.
 
 ## What's here
 
-- `.claude/skills/` — five Claude Code skills: `red-team-operator`,
-  `reaperc2-operator`, `exploit-development`, `purple-team-atomic-tests`,
-  `harness-report`.
+- `.claude/skills/` — five Claude Code skills, used in sequence:
+  `red-team-operator`, `reaperc2-operator`, `exploit-development`,
+  `purple-team-atomic-tests`, `harness-report`. `purple-team-atomic-tests` is
+  required for every positive finding (real files under `atomics/`) and must
+  finish before `harness-report` drafts; a time-boxed close does not skip it.
 - `cmd/harness`, `internal/harness` — the Go launcher that validates engagement
   inputs, builds the initial session prompt, and starts `claude`.
 - `v3-ghostwriter-executive-document.docx` — the Ghostwriter report template
