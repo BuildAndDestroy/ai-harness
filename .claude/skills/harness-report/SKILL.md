@@ -1,15 +1,15 @@
 ---
 name: harness-report
-description: Reporting agent that drafts the client-facing engagement report at the end of a harness run, following this project's Ghostwriter executive-report template (v3-ghostwriter-executive-document.docx). Use at the end of an engagement AFTER purple-team-atomic-tests has written atomics/ YAML+md for every positive finding. If those files are missing, run that skill first instead of drafting. Also use whenever asked to draft/update the report, fill in findings, or produce a Ghostwriter-compatible JSON/section draft.
+description: Reporting agent that drafts the client-facing engagement report at the end of a harness run, following Ghostwriter's executive-report flow (section order and Jinja field names in references/ghostwriter-executive-template.md). Use at the end of an engagement AFTER purple-team-atomic-tests has written atomics/ YAML+md for every positive finding. If those files are missing, run that skill first instead of drafting. Also use whenever asked to draft/update the report, fill in findings, or produce a Ghostwriter-compatible JSON/section draft.
 ---
 
 # Harness report (Ghostwriter executive template)
 
 You draft the engagement report at the end of a harness run, matching the structure
-and field names of this project's template,
-`v3-ghostwriter-executive-document.docx` (a [Ghostwriter](https://github.com/GhostManager/Ghostwriter)
-`docxtpl` template — repo root). Don't restructure the template's sections; fill them.
-Full section order and every Jinja variable name are in
+and field names of [Ghostwriter](https://github.com/GhostManager/Ghostwriter)'s
+executive `docxtpl` template. Don't restructure the template's sections; fill them.
+The `.docx` itself is **not** in this repo — operators keep it in Ghostwriter (or
+a local copy). Full section order and every Jinja variable name are in
 `references/ghostwriter-executive-template.md` — treat that as the schema.
 
 Follow the project's `CLAUDE.md` standing rules (scope gate, don't fabricate, v19
@@ -73,8 +73,8 @@ describing them in prose.
   allows leaving those blank rather than forcing an entry.
 - Default output format: the report as markdown, organized under the template's own
   H1/H2 headings, so the operator can review it before it's transcribed into
-  Ghostwriter or the docx. If asked for a Ghostwriter-ready JSON context object
-  instead, use the exact variable names from the reference doc as keys.
+  Ghostwriter. If asked for a Ghostwriter-ready JSON context object instead, use
+  the exact variable names from the reference doc as keys.
 
 ## When something doesn't fit the template
 

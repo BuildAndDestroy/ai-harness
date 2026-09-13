@@ -22,9 +22,11 @@ engagement ("harness run"), launched via the `harness` Go binary (`cmd/harness`)
    `atomics/` fills the report's Validation fields. `harness-report` must not
    start until those files exist for every positive finding.
 5. **`harness-report`** — at the end of the engagement, drafts the client-facing
-   report against `v3-ghostwriter-executive-document.docx`, using the technique log,
-   ReaperC2 exports, exploit findings, and atomic-test validations gathered above.
-   A time-boxed close or a blocked later objective does not skip skill 4.
+   report against Ghostwriter's executive template (schema in
+   `harness-report/references/ghostwriter-executive-template.md`; the `.docx` is
+   not in this repo), using the technique log, ReaperC2 exports, exploit findings,
+   and atomic-test validations gathered above. A time-boxed close or a blocked
+   later objective does not skip skill 4.
 
 ## Starting an engagement
 

@@ -55,7 +55,6 @@ WORKDIR /workspace
 COPY --from=builder /out/harness /usr/local/bin/harness
 COPY CLAUDE.md ./CLAUDE.md
 COPY .claude ./.claude
-COPY v3-ghostwriter-executive-document.docx ./v3-ghostwriter-executive-document.docx
 
 RUN mkdir -p /workspace/sessions && chown -R harness:harness /workspace
 
