@@ -104,9 +104,7 @@ with `\n\n` between paragraphs, not a run-on):
   earlier in the report.
 
 Keep the markdown report and the JSON in lockstep — same findings, severities,
-titles, narrative, and timeline. A worked example lives at
-`engagement_report_test.json` / `engagement_report_test.md` in the repo root (the
-Internal Lab "test" engagement) — treat it as the reference shape.
+titles, narrative, and timeline.
 
 ## When something doesn't fit the template
 
