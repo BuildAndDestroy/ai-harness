@@ -1,6 +1,6 @@
 ---
 name: purple-team-atomic-tests
-description: Purple team agent that turns a red team's positive findings (techniques that succeeded against the target — i.e. detection/control gaps) into Atomic Red Team-style atomic tests the blue team can safely re-run in a controlled environment to validate detections. Includes the engagement's actual command and ReaperC2 command output as evidence. Use when a red team engagement produces a finding that needs a repeatable detection-validation test, or when asked to build/expand an atomic test library.
+description: Purple team agent that turns a red team's positive findings (techniques that succeeded against the target — i.e. detection/control gaps) into Atomic Red Team-style atomic tests the blue team can safely re-run in a controlled environment to validate detections. Includes the engagement's actual command and ReaperC2 command output as evidence. Use as soon as a technique succeeds — required before harness-report, not optional, and not only at engagement close. Also use when asked to build/expand an atomic test library.
 ---
 
 # Purple team — atomic test generation
@@ -15,6 +15,19 @@ Follow the project's `CLAUDE.md` standing rules. In particular: **atomic tests r
 against a controlled/lab environment the blue team owns, never back against the
 original client production target** without a separate, explicit authorization for
 that. Every test needs a cleanup step — leave nothing behind.
+
+## When to run (mandatory)
+
+This skill is **required for every positive finding**, not a close-out extra.
+
+- Run it **as soon as the technique succeeds** — do not wait until objectives are
+  done, until LPE is exhausted, or until someone says "write the report."
+- Write the files under `atomics/` **before** `harness-report` starts. Validation
+  sentences in a report are not this skill's deliverable.
+- A time-boxed close, a blocked later objective, or "move to reporting" does
+  **not** skip this. If `harness-report` is about to run and `atomics/<id>/`
+  is missing for a successful technique, run this skill first.
+- Do not mark this skill complete unless those YAML + markdown files exist.
 
 ## Input: what makes a finding "positive"
 
@@ -81,8 +94,9 @@ Ghostwriter executive template — see `harness-report`):
 Default to an `atomics/` directory laid out the same way as the upstream Atomic Red
 Team repo: `atomics/T1059.001/T1059.001.md` (human-readable) next to
 `atomics/T1059.001/T1059.001.yaml` (machine-readable), one directory per technique.
-If this project doesn't have an `atomics/` directory yet and the operator wants tests
-committed, create it there rather than inventing a different layout.
+If this project doesn't have an `atomics/` directory yet, create it there rather
+than inventing a different layout. Creating those files is the skill's job, not
+an optional extra the operator has to request.
 
 ## Safety checklist before handing a test off
 

@@ -14,14 +14,19 @@ engagement ("harness run"), launched via the `harness` Go binary (`cmd/harness`)
 3. **`exploit-development`** — turns a confirmed, in-scope vulnerability into a
    working proof-of-concept, mapped to ATT&CK v19. Every exploit artifact it
    produces carries a mandatory educational/authorized-testing-only notice.
-4. **`purple-team-atomic-tests`** — for each positive finding (a technique that
-   succeeded against the target, i.e. a detection/control gap), generates Atomic Red
-   Team-style validation tests the blue team can re-run in a controlled environment,
-   including the engagement's command output. Its output fills the report's
-   Validation fields.
+4. **`purple-team-atomic-tests`** — **required, not optional.** For each positive
+   finding (a technique that succeeded against the target, i.e. a detection/control
+   gap), generates Atomic Red Team-style validation tests the blue team can re-run
+   in a controlled environment, including the engagement's command output. Runs
+   **as soon as the technique succeeds**, not at close. Its YAML/markdown under
+   `atomics/` fills the report's Validation fields. `harness-report` must not
+   start until those files exist for every positive finding.
 5. **`harness-report`** — at the end of the engagement, drafts the client-facing
-   report against `v3-ghostwriter-executive-document.docx`, using the technique log,
-   ReaperC2 exports, exploit findings, and atomic-test validations gathered above.
+   report against Ghostwriter's executive template (schema in
+   `harness-report/references/ghostwriter-executive-template.md`; the `.docx` is
+   not in this repo), using the technique log, ReaperC2 exports, exploit findings,
+   and atomic-test validations gathered above. A time-boxed close or a blocked
+   later objective does not skip skill 4.
 
 ## Starting an engagement
 
@@ -71,6 +76,11 @@ operator has stated it in the conversation.
 - **Scope gate first.** Nothing in this harness is used outside the active,
   authorized engagement (named client, dates, written rules of engagement). If scope
   isn't established, stop and ask for it before planning or executing anything.
+- **Purple-team before report.** Every positive finding must produce
+  `purple-team-atomic-tests` artifacts under `atomics/` (YAML + markdown with
+  engagement command output) **before** `harness-report` runs. Do not skip this
+  for a time-boxed close, a blocked later objective, or "move to reporting."
+  Validation prose in the report is not a substitute for those files.
 - **Recommend, don't auto-execute.** These skills draft plans, commands, tests, and
   report text for a human operator to review and run/approve — they don't fire
   implant commands or send client deliverables on their own.

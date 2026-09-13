@@ -7,13 +7,16 @@ standing rules; this file covers building and running the `harness` launcher.
 
 ## What's here
 
-- `.claude/skills/` — five Claude Code skills: `red-team-operator`,
-  `reaperc2-operator`, `exploit-development`, `purple-team-atomic-tests`,
-  `harness-report`.
+- `.claude/skills/` — five Claude Code skills, used in sequence:
+  `red-team-operator`, `reaperc2-operator`, `exploit-development`,
+  `purple-team-atomic-tests`, `harness-report`. `purple-team-atomic-tests` is
+  required for every positive finding (real files under `atomics/`) and must
+  finish before `harness-report` drafts; a time-boxed close does not skip it.
+  `harness-report` drafts against Ghostwriter's executive template; the schema
+  lives in `.claude/skills/harness-report/references/ghostwriter-executive-template.md`
+  (the `.docx` is not in this repo).
 - `cmd/harness`, `internal/harness` — the Go launcher that validates engagement
   inputs, builds the initial session prompt, and starts `claude`.
-- `v3-ghostwriter-executive-document.docx` — the Ghostwriter report template
-  `harness-report` drafts against.
 - `Dockerfile`, `docker-compose.yml` — containerized build/run, multi-arch
   (`linux/amd64`, `linux/arm64`).
 

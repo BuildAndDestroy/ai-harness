@@ -45,6 +45,7 @@ func TestBuildPromptOmitsPasswordAndListsSkills(t *testing.T) {
 		cfg.Client, cfg.Engagement, cfg.Authorization, cfg.ReaperURL, cfg.ReaperC2URL, cfg.ReaperUsername,
 		"Get domain admin", "Reach the finance share",
 		"$REAPER_C2_URL", "Notes & ATT&CK", "command output",
+		"Skill-4 gate", "atomics/", "Do not start **harness-report**",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("prompt missing expected content %q", want)

@@ -54,13 +54,26 @@ later do is covered by it.
    **exploit-development** skill. It will attach a mandatory educational/
    authorized-use notice to anything it produces — keep that notice intact.
 4. For every positive finding (a technique that succeeded — a detection/control
-   gap), use the **purple-team-atomic-tests** skill to produce a validation test
-   the client's blue team can safely re-run. Include the engagement's command
-   **and** its ReaperC2 command output (do not invent stdout).
-5. At the end of the engagement (objectives met, time-boxed close, or on request),
-   use the **harness-report** skill to draft the client report against
-   `v3-ghostwriter-executive-document.docx`, pulling from everything gathered in
-   steps 1-4, including the Navigator layer exported from the notes you took.
+   gap), use the **purple-team-atomic-tests** skill **as soon as the technique
+   succeeds** (do not wait until close). Produce real Atomic Red Team files under
+   `atomics/<id>/` (`<id>.yaml` and `<id>.md` with an Engagement evidence section
+   citing the engagement command **and** its ReaperC2 command output — do not
+   invent stdout). A Validation sentence in a report is not a substitute for
+   those files.
+5. At the end of the engagement (objectives met, time-boxed close, blocked later
+   objective, or on request), use the **harness-report** skill to draft the client
+   report against Ghostwriter's executive template (schema in
+   `harness-report/references/ghostwriter-executive-template.md`; the `.docx` is
+   not in this repo), pulling from everything gathered in steps 1-4, including
+   the Navigator layer exported from the notes you took.
+
+**Skill-4 gate (do not skip).** Do not start **harness-report** while any
+positive finding lacks `atomics/<id>/<id>.yaml` and `atomics/<id>/<id>.md`.
+"Move to reporting", a time-boxed close, or a blocked later objective does
+**not** waive this. If you are about to draft the report and those files are
+missing, run **purple-team-atomic-tests** first. Do not invent `ART-Txxxx-…`
+validation labels, and do not mark purple-team complete because
+Observations/Validation prose exists in the report.
 
 Confirm the objectives and ReaperC2 workspace with the operator before taking any
 action against the target.

@@ -6,3 +6,6 @@
 
 # Local secrets for docker compose
 .env
+
+# Ghostwriter executive .docx lives in Ghostwriter (or a local copy) — not VCS.
+v3-ghostwriter-executive-document.docx

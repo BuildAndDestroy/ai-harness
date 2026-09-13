@@ -1,10 +1,11 @@
-# v3-ghostwriter-executive-document.docx — structure & field reference
+# Ghostwriter executive template — structure & field reference
 
-Extracted from `v3-ghostwriter-executive-document.docx` (repo root). This is a
-Ghostwriter `docxtpl` template: `{{ var }}` for plain text, `{{p var }}` for a
-rich-text subdoc (paragraphed prose/lists, not a single line), `{%tr for x in y %}
-... {%tr endfor %}` to repeat a table row, `{% cellbg finding.severity_color %}` to
-color a cell by severity. Section order below is the order in the document — keep it.
+Schema for Ghostwriter's executive `docxtpl` report. The `.docx` is not in this
+repo; operators keep it in Ghostwriter (or a local copy). `{{ var }}` is plain
+text, `{{p var }}` is a rich-text subdoc (paragraphed prose/lists, not a single
+line), `{%tr for x in y %} ... {%tr endfor %}` repeats a table row,
+`{% cellbg finding.severity_color %}` colors a cell by severity. Section order
+below is the order in the document — keep it.
 
 ## 1. Contacts and Resources (Heading 1)
 

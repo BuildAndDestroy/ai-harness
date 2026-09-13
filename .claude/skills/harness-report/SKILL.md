@@ -1,19 +1,37 @@
 ---
 name: harness-report
-description: Reporting agent that drafts the client-facing engagement report at the end of a harness run, following this project's Ghostwriter executive-report template (v3-ghostwriter-executive-document.docx). Use at the end of an engagement, or whenever asked to draft/update the report, fill in findings, or produce a Ghostwriter-compatible JSON/section draft.
+description: Reporting agent that drafts the client-facing engagement report at the end of a harness run, following Ghostwriter's executive-report flow (section order and Jinja field names in references/ghostwriter-executive-template.md). Use at the end of an engagement AFTER purple-team-atomic-tests has written atomics/ YAML+md for every positive finding. If those files are missing, run that skill first instead of drafting. Also use whenever asked to draft/update the report, fill in findings, or produce a Ghostwriter-compatible JSON/section draft.
 ---
 
 # Harness report (Ghostwriter executive template)
 
 You draft the engagement report at the end of a harness run, matching the structure
-and field names of this project's template,
-`v3-ghostwriter-executive-document.docx` (a [Ghostwriter](https://github.com/GhostManager/Ghostwriter)
-`docxtpl` template — repo root). Don't restructure the template's sections; fill them.
-Full section order and every Jinja variable name are in
+and field names of [Ghostwriter](https://github.com/GhostManager/Ghostwriter)'s
+executive `docxtpl` template. Don't restructure the template's sections; fill them.
+The `.docx` itself is **not** in this repo — operators keep it in Ghostwriter (or
+a local copy). Full section order and every Jinja variable name are in
 `references/ghostwriter-executive-template.md` — treat that as the schema.
 
 Follow the project's `CLAUDE.md` standing rules (scope gate, don't fabricate, v19
 taxonomy).
+
+## Skill-4 gate — stop if atomic tests are missing
+
+`purple-team-atomic-tests` is a required prior step, not optional reporting
+color. Before you draft (markdown or JSON):
+
+1. List the engagement's **positive findings** (techniques that succeeded).
+2. For each, confirm `atomics/<technique-id>/<technique-id>.yaml` and the
+   matching `.md` exist, with an Engagement evidence section citing real
+   ReaperC2 command output.
+3. If any are missing, **stop**. Run `purple-team-atomic-tests` for those
+   findings, then come back. Do not draft Validation by inventing
+   `ART-Txxxx-…` names or paraphrasing a test that was never written.
+
+A time-boxed close, a blocked later objective, or an operator "move to
+reporting" instruction does **not** waive this. If there were genuinely no
+positive findings (no technique succeeded), say so and leave Observations /
+Validation empty rather than fabricating tests.
 
 ## Gather inputs before drafting
 
@@ -23,7 +41,7 @@ taxonomy).
 | Goals & Objectives, Scope, Whitecards | Engagement planning / ROE — ask if missing, don't invent scope |
 | Executive Summary, Methodology, Scenario | Summarized from everything below once it exists — write this section last even though it appears early |
 | Attack Narrative (Critical Steps) | `red-team-operator`'s critical-step log for this engagement |
-| Observations / Recommendations / Validation | `purple-team-atomic-tests` output per positive finding — Validation text should point at the actual atomic test and the engagement command output it cites |
+| Observations / Recommendations / Validation | `purple-team-atomic-tests` output per positive finding — Validation text must point at the real `atomics/<id>/<id>.yaml` (and its Engagement evidence command output). Invented `ART-Txxxx-…` labels are not an atomic test |
 | Detailed Findings (severity, CVSS, affected hosts, description, impact, replication, host detection, solution) | Vulnerabilities found incidentally during the engagement, per `red-team-operator`/`reaperc2-operator` — Red Team engagements are not primarily vuln-hunting, so this section may legitimately be short or empty |
 | Mitre ATT&CK Killchain table + Navigator layer link | `reaperc2-operator`'s Notes & ATT&CK technique tags / Navigator layer export (STIX v19) |
 | Timeline (C2 logs, C2 sessions, attack simulation) | `reaperc2-operator`'s Ghostwriter CSV / logs export |
@@ -56,9 +74,10 @@ describing them in prose.
 - **Produce BOTH outputs by default at the end of a harness run** — the markdown
   report *and* a Ghostwriter-ready JSON context object. The operator reviews the
   markdown; the JSON is what gets pasted into Ghostwriter's report data model (or
-  fed to `docxtpl` against `v3-ghostwriter-executive-document.docx`).
+  fed to `docxtpl` against the operator's Ghostwriter executive template — the
+  `.docx` is not in this repo).
   - Markdown: organized under the template's own H1/H2 headings, field names
-    annotated inline, so it can be transcribed straight into the docx.
+    annotated inline, so it can be transcribed straight into Ghostwriter.
   - JSON: a single object using the exact variable names from
     `references/ghostwriter-executive-template.md` as keys. Write it to
     `engagement_report_<engagement>.json` next to the markdown report. Validate it
@@ -89,8 +108,9 @@ with `\n\n` between paragraphs, not a run-on):
 - `attack_narrative`: `[ { step, tactic, techniques, narrative } ]` — one entry per
   Critical Step, tagged with the ATT&CK v19 tactic/techniques it exercises.
 - `observations_and_recommendations`: `[ { observation, recommendation, validation } ]`
-  — `validation` is the `purple-team-atomic-tests` atomic test (or a pointer to it)
-  plus the engagement command output it cites.
+  — `validation` must point at the real `atomics/<id>/<id>.yaml` (and its
+  Engagement evidence command output). Invented `ART-Txxxx-…` labels are not an
+  atomic test.
 - `attack_killchain`: `[ { tactic, tactic_name, techniques } ]` — one row per tactic
   in v19 matrix order (all 15, including the Stealth `TA0005` / Defense Impairment
   `TA0112` split); leave a tactic's `techniques` empty string if unused rather than

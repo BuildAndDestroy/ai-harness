@@ -46,11 +46,12 @@ engagement's Notes & ATT&CK page (its matrix version selector should be set to v
   "Attack Narrative → Critical Step N" entries.
 - **Positive finding** — a technique that *succeeded* against the target, meaning it
   represents a detection or control gap the blue team should be able to catch next
-  time. Hand each one to the `purple-team-atomic-tests` skill (technique ID +
-  procedure + **the ReaperC2 command output from the successful run** + what
-  was/wasn't detected) so it can produce a validation test. Don't invent detection
-  outcomes or stdout — only report what was actually observed (command output,
-  logs, EDR alerts, absence of either).
+  time. Hand each one to the `purple-team-atomic-tests` skill **immediately**
+  (technique ID + procedure + **the ReaperC2 command output from the successful
+  run** + what was/wasn't detected) so it can produce a validation test. Do not
+  wait until close, and do not defer this to `harness-report`. Don't invent
+  detection outcomes or stdout — only report what was actually observed (command
+  output, logs, EDR alerts, absence of either).
 
 ## Response format
 
@@ -68,5 +69,7 @@ When an action should be executed against a beacon, say so explicitly and hand o
 the `reaperc2-operator` skill for the exact command/API call — this skill plans
 tradecraft, it doesn't reimplement ReaperC2's operator surface.
 
-At engagement close, hand your accumulated critical-step and technique log to the
-`harness-report` skill.
+At engagement close, confirm `purple-team-atomic-tests` has written
+`atomics/<id>/` YAML + markdown for every positive finding, then hand your
+accumulated critical-step and technique log to the `harness-report` skill. Do
+not start the report while those files are missing.
